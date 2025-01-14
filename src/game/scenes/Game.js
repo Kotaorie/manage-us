@@ -23,7 +23,7 @@ export class Game extends Scene
 
         const platforms = this.physics.add.staticGroup();
         this.player = this.physics.add.sprite(100, 450, 'perso');
-        this.player.setScale(1.2) 
+        this.player.setScale(2.0) 
         this.player.setSize(20, 27);
         this.player.setOffset(0, 0);
 
