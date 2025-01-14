@@ -20,7 +20,7 @@ const config = {
         MainGame
     ],
     scale: {
-        zoom: 5
+        zoom: 7
     }
 };
 
