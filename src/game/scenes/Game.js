@@ -22,6 +22,11 @@ export class Game extends Scene
         this.load.image('kitchen', 'assets/tiles/kitchen.png');
         this.load.image('interupteurOnTexture', 'assets/Objects/Interupteur_2.png');
         this.load.image('interupteurOffTexture', 'assets/Objects/Interupteur_1.png');
+        this.load.image('computerOn', 'assets/Objects/Computer_1.png');
+        this.load.image('computerOff', 'assets/Objects/Computer_2.png');
+        this.load.image('bottle', 'assets/Objects/bottle.png');
+        this.load.image('sink', 'assets/Objects/sink.png');
+        this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
     }
@@ -30,6 +35,10 @@ export class Game extends Scene
     {
         const map = this.make.tilemap({ key: 'map' });
         const button = this.add.image('interupteurOnTexture').setInteractive();
+        const computer = this.add.image('computerOn').setInteractive();
+        const bottle = this.add.image('bottle').setInteractive();
+        const sink = this.add.image('sink').setInteractive();
+        const sink_water = this.add.sprite(100, 100, 'animated_sink').setInteractive();
         const roomZones = map.getObjectLayer('RoomZones');
         const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
         const generic =  map.addTilesetImage('generic', 'generic');
@@ -43,7 +52,9 @@ export class Game extends Scene
         map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
         map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
-        const ObjetInteractifLayer = map.getObjectLayer('ObjetInteractif');
+        const bottleLayer = map.getObjectLayer('Bottle');
+        const computerLayer = map.getObjectLayer('Computer');
+        const sinkLayer = map.getObjectLayer('Sink');
 
          this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
@@ -79,6 +90,8 @@ export class Game extends Scene
         this.player.setBounce(0.2);
         this.player.setCollideWorldBounds(true);
         this.physics.add.collider(this.player, wallsLayer);
+
+        this.physics.add.existing(this.player);
         
 
         this.anims.create({
@@ -156,25 +169,82 @@ export class Game extends Scene
         // Afficher les hitboxes des interrupteurs
         this.physics.world.createDebugGraphic();
 
+        let currentInteractable = null;  // Stocke l'objet avec lequel le joueur peut interagir
+
+        this.input.keyboard.on('keydown-E', () => {
+            if (currentInteractable) {
+                const { sprite, type } = currentInteractable;
+        
+                if (type === 'interupteur') {
+                    const newTexture = sprite.texture.key === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
+                    sprite.setTexture(newTexture);
+                    this.interactionText.setText('');
+                } else if (type === 'bottle') {
+                    this.interactionText.setText('Laxatif ajouté');
+                } else if (type === 'computer') {
+                    const newTexture = sprite.texture.key === 'computerOn' ? 'computerOff' : 'computerOn';
+                    sprite.setTexture(newTexture);
+                    this.interactionText.setText('Ordinateur allumé');
+                }
+                currentInteractable = null;  // Réinitialiser après interaction
+            }
+        });
+        
+        // Définir les couches interactives
         interupteurLayer.objects.forEach(obj => {
             const isOn = obj.properties.find(p => p.name === 'check')?.value || false;
             const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+            this.physics.add.existing(sprite, true);
+            this.physics.add.overlap(this.player, sprite, () => {
+                this.setInteraction(sprite, 'interupteur', 'Appuyez sur E pour interagir');
+            });
+        });
+        
+        bottleLayer.objects.forEach(obj => {
+            const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive();
+            this.physics.add.existing(sprite, true);
+            this.physics.add.overlap(this.player, sprite, () => {
+                this.setInteraction(sprite, 'bottle', 'Appuyez sur E pour ajouter le laxatif');
+            });
+        });
+        
+        computerLayer.objects.forEach(obj => {
+            const isOn = obj.properties.find(p => p.name === 'play')?.value || false;
+            const textureKey = isOn ? 'computerOn' : 'computerOff';
+            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+            this.physics.add.existing(sprite, true);
+            this.physics.add.overlap(this.player, sprite, () => {
+                this.setInteraction(sprite, 'computer', 'Appuyez sur E pour allumer');
+            });
+        });
+        
+        // Fonction utilitaire pour définir une interaction
+        this.setInteraction = (sprite, type, text) => {
+            currentInteractable = { sprite, type };
+            this.interactionText.setText(text);
+        };
+        
+
+        sinkLayer.objects.forEach(obj => {
+            const isOn = obj.properties.find(p => p.name === 'water')?.value || false;
+            const textureKey = 'sink';
+            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
             sprite.setSize(obj.width, obj.height);
             this.physics.add.existing(sprite, true);
-            this.physics.add.existing(this.player);
             this.physics.add.overlap(this.player, sprite, () => {
                 isInteracting = true;
-                this.interactionText.setText('Appuyez sur E pour interagir');
-                // this.interactionText.setPosition(this.player.x, this.player.y - 20);
+                this.interactionText.setText('Appuyez sur E pour casser le lavabo');
                 this.input.keyboard.on('keydown-E', () => {
                     const currentTexture = sprite.texture.key;
-                    const newTexture = currentTexture === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
+                    const newTexture = currentTexture === 'sink' ? 'animated_sink' : 'sink';
+                    this.interactionText.setText('Innondation en cours');
                     sprite.setTexture(newTexture);
                 });
             });
-        });
-    
+        }
+        );
+
         this.time.addEvent({
             delay: 100,
             callback: () => {
