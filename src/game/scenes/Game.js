@@ -15,8 +15,11 @@ export class Game extends Scene
 
     preload ()
     {
-        this.load.image('tiles', 'assets/tiles/wall_32.png');
-        this.load.image('object', 'assets/tiles/object_32.png');
+        this.load.image('room_builder', 'assets/tiles/Room_Builder_32x32.png');
+        this.load.image('bathroom', 'assets/tiles/bathroom.png');
+        this.load.image('generic', 'assets/tiles/generic.png');
+        this.load.image('jail', 'assets/tiles/jail.png');
+        this.load.image('kitchen', 'assets/tiles/kitchen.png');
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
     }
@@ -25,11 +28,16 @@ export class Game extends Scene
     {
         const map = this.make.tilemap({ key: 'map' });
         const roomZones = map.getObjectLayer('RoomZones');
-        const tileset = map.addTilesetImage('wall_32', 'tiles');
-        const objectset = map.addTilesetImage('object_32', 'object');
-        map.createLayer('Grounds', tileset);
-        map.createLayer('Objects', objectset);
-        const wallsLayer = map.createLayer('Walls', tileset);
+        const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
+        const generic =  map.addTilesetImage('generic', 'generic');
+        const jail =  map.addTilesetImage('jail', 'jail');
+        const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
+        const builder =  map.addTilesetImage('room_builder', 'room_builder');
+        map.createLayer('Grounds', builder);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
+        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
+        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen]);
+        const wallsLayer = map.createLayer('Walls', builder);
         wallsLayer.setCollisionByProperty({ collides: true });  
 
         this.graphics = this.add.graphics();
