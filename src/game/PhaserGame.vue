@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, defineProps } from 'vue';
 import { EventBus } from './EventBus';
 import StartGame from './main';
 
@@ -8,10 +8,20 @@ const scene = ref();
 const game = ref();
 
 const emit = defineEmits(['current-active-scene']);
+const props = defineProps({
+    user: {
+        type: Object,
+        required: true
+    },
+    socket: {
+        type: Object,
+        required: true
+    }
+})
 
 onMounted(() => {
 
-    game.value = StartGame('game-container');
+    game.value = StartGame('game-container', props.user, props.socket);
 
     EventBus.on('current-scene-ready', (currentScene) => {
 

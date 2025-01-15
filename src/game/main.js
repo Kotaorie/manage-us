@@ -16,16 +16,13 @@ const config = {
             debug: false
         }
     },
-    scene: [
-        MainGame
-    ],
     scale: {
-        zoom: 7
+        zoom: 3
     }
 };
 
-const StartGame = (parent) => {
-    return new Game({ ...config, parent });
+const StartGame = (parent, user, socket) => {
+    return new Game({ ...config, parent, scene: [ new MainGame(user, socket) ] });
 }
 
 export default StartGame;
