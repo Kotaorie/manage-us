@@ -20,6 +20,8 @@ export class Game extends Scene
         this.load.image('generic', 'assets/tiles/generic.png');
         this.load.image('jail', 'assets/tiles/jail.png');
         this.load.image('kitchen', 'assets/tiles/kitchen.png');
+        this.load.image('interupteurOnTexture', 'assets/Objects/Interupteur_2.png');
+        this.load.image('interupteurOffTexture', 'assets/Objects/Interupteur_1.png');
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
     }
@@ -27,6 +29,7 @@ export class Game extends Scene
     create ()
     {
         const map = this.make.tilemap({ key: 'map' });
+        const button = this.add.image('interupteurOnTexture').setInteractive();
         const roomZones = map.getObjectLayer('RoomZones');
         const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
         const generic =  map.addTilesetImage('generic', 'generic');
@@ -34,11 +37,23 @@ export class Game extends Scene
         const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
         const builder =  map.addTilesetImage('room_builder', 'room_builder');
         map.createLayer('Grounds', builder);
-        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
-        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
         map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen]);
         const wallsLayer = map.createLayer('Walls', builder);
         wallsLayer.setCollisionByProperty({ collides: true });  
+        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
+        const interupteurLayer = map.getObjectLayer('Interupteur');
+        const ObjetInteractifLayer = map.getObjectLayer('ObjetInteractif');
+
+         this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
+            fontSize: '15px',
+            fill: '#ffffff',
+            backgroundColor: 'transparent',
+            padding: { x: 10, y: 5 },
+            align: 'center',
+            resolution: 1
+        }).setOrigin(0.5, 0).setScrollFactor(0);
+         
 
         this.graphics = this.add.graphics();
         this.graphics.fillStyle(0x000000);
@@ -57,9 +72,9 @@ export class Game extends Scene
 
         const platforms = this.physics.add.staticGroup();
         this.player = this.physics.add.sprite(200, 50, 'perso');
-        this.player.setScale(1) 
-        this.player.setSize(15, 15);
-        this.player.setOffset(4, 13);
+        this.player.body.setSize(this.player.width /4 , this.player.height / 4); // Adapte la taille à la moitié si besoin
+        this.player.body.setOffset(7,15);
+        this.player.setScale(1.5) 
 
         this.player.setBounce(0.2);
         this.player.setCollideWorldBounds(true);
@@ -123,6 +138,7 @@ export class Game extends Scene
         }).setOrigin(0.5, 0).setScrollFactor(0);
 
         let isInZone = false;
+        let isInteracting = false;
 
         roomZones.objects.forEach(zone => {
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
@@ -136,6 +152,28 @@ export class Game extends Scene
                 this.zoneLabels.setText(roomName);
             });
         });
+
+        // Afficher les hitboxes des interrupteurs
+        this.physics.world.createDebugGraphic();
+
+        interupteurLayer.objects.forEach(obj => {
+            const isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
+            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+            sprite.setSize(obj.width, obj.height);
+            this.physics.add.existing(sprite, true);
+            this.physics.add.existing(this.player);
+            this.physics.add.overlap(this.player, sprite, () => {
+                isInteracting = true;
+                this.interactionText.setText('Appuyez sur E pour interagir');
+                // this.interactionText.setPosition(this.player.x, this.player.y - 20);
+                this.input.keyboard.on('keydown-E', () => {
+                    const currentTexture = sprite.texture.key;
+                    const newTexture = currentTexture === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
+                    sprite.setTexture(newTexture);
+                });
+            });
+        });
     
         this.time.addEvent({
             delay: 100,
@@ -144,6 +182,11 @@ export class Game extends Scene
                     this.zoneLabels.setText('');
                 }
                 isInZone = false;
+
+                if (!isInteracting) {
+                    this.interactionText.setText('');
+                }
+                isInteracting = false;
             },
             loop: true
         });
