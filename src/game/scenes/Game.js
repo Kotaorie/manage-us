@@ -2,6 +2,8 @@ import { Scene } from 'phaser';
 import { OddOneOutMiniGame } from '../minigames/OddOneOutMiniGame';
 import { MemoryGameMiniGame } from '../minigames/MemoryGameMiniGame';
 import { HangmanMiniGame } from '../minigames/HangmanMiniGame';
+import { SwitchPuzzleMiniGame } from '../minigames/SwitchPuzzleMiniGame';
+import { MathPuzzleMiniGame } from '../minigames/MathPuzzleMiniGame ';
 
 export class Game extends Scene
 {
@@ -67,7 +69,7 @@ export class Game extends Scene
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
-        this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame];
+        this.miniGames = [SwitchPuzzleMiniGame, MathPuzzleMiniGame];
 
          this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
