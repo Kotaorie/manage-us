@@ -1,5 +1,6 @@
 import { Game as MainGame } from './scenes/Game';
 import { AUTO, Game } from 'phaser';
+import { MiniGameLauncher } from './scenes/MiniGameLauncher';
 
 //  Find out more information about the Game Config at:
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
@@ -17,7 +18,7 @@ const config = {
         }
     },
     scene: [
-        MainGame
+        MainGame, MiniGameLauncher
     ],
     scale: {
         zoom: 3

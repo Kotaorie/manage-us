@@ -1,4 +1,7 @@
 import { Scene } from 'phaser';
+import { OddOneOutMiniGame } from '../minigames/OddOneOutMiniGame';
+import { MemoryGameMiniGame } from '../minigames/MemoryGameMiniGame';
+import { HangmanMiniGame } from '../minigames/HangmanMiniGame';
 
 export class Game extends Scene
 {
@@ -11,6 +14,7 @@ export class Game extends Scene
         this.timeLimit = 900;  // 15 minutes en secondes
         this.timeRemaining = this.timeLimit;  // Temps restant
         this.timerText = null; // Texte qui affichera le timer
+        this.completedMissions = {};
     }
 
     preload ()
@@ -29,6 +33,14 @@ export class Game extends Scene
         this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
+
+        this.load.image('mission', 'assets/minigames/memory/mission.png');
+        this.load.image('pc', 'assets/minigames/memory/pc.png');
+        this.load.image('chaise', 'assets/minigames/memory/chair.png');
+        this.load.image('object', 'assets/minigames/memory/object.png');
+        this.load.image('star', 'assets/minigames/memory/star.png');
+        this.load.image('bomb', 'assets/minigames/memory/bomb.png');
+        this.load.image('papillon', 'assets/minigames/memory/papillon.png');
     }
 
     create ()
@@ -55,6 +67,7 @@ export class Game extends Scene
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
+        this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame];
 
          this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
@@ -182,13 +195,28 @@ export class Game extends Scene
                 } else if (type === 'bottle') {
                     this.interactionText.setText('Laxatif ajouté');
                 } else if (type === 'computer') {
-                    const newTexture = sprite.texture.key === 'computerOn' ? 'computerOff' : 'computerOn';
-                    sprite.setTexture(newTexture);
-                    this.interactionText.setText('Ordinateur allumé');
+                    if (sprite.texture.key === 'computerOn') {
+                        // Filtrer les missions non terminées
+                        const availableMiniGames = this.miniGames.filter(
+                            (miniGame) => !this.completedMissions[miniGame.name]
+                        );
+        
+                        if (availableMiniGames.length === 0) {
+                            this.interactionText.setText('Toutes les missions ont été terminées !');
+                            return;
+                        }
+        
+                        // Sélectionner un mini-jeu aléatoire parmi ceux disponibles
+                        const randomIndex = Phaser.Math.Between(0, availableMiniGames.length - 1);
+                        const selectedMiniGame = availableMiniGames[randomIndex];
+        
+                        this.startMiniGame(selectedMiniGame, sprite); // Passer le sprite de l’ordinateur
+                    }
                 }
+        
                 currentInteractable = null;  // Réinitialiser après interaction
             }
-        });
+        });           
         
         // Définir les couches interactives
         interupteurLayer.objects.forEach(obj => {
@@ -211,13 +239,15 @@ export class Game extends Scene
         
         computerLayer.objects.forEach(obj => {
             const isOn = obj.properties.find(p => p.name === 'play')?.value || false;
-            const textureKey = isOn ? 'computerOn' : 'computerOff';
+            const textureKey = 'computerOn';
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
-                this.setInteraction(sprite, 'computer', 'Appuyez sur E pour allumer');
+                if (sprite.texture.key === 'computerOn') { 
+                    this.setInteraction(sprite, 'computer', 'Appuyez sur E pour jouer au mini-jeu');
+                }
             });
-        });
+        });        
         
         // Fonction utilitaire pour définir une interaction
         this.setInteraction = (sprite, type, text) => {
@@ -262,6 +292,45 @@ export class Game extends Scene
         });
     }
 
+    startMiniGame(miniGameClass, computerSprite) {
+        this.scene.pause();
+        this.scene.launch('MiniGameLauncher', {
+            miniGameClass: miniGameClass,
+            onEnd: (success) => {
+                if (success) {
+                    console.log('Mini-jeu réussi !');
+                    this.completedMissions[miniGameClass.name] = true;  // Marquer la mission comme terminée
+    
+                    // Éteindre l'écran
+                    computerSprite.setTexture('computerOff');
+                    computerSprite.disableInteractive();  // Désactiver l'interaction avec cet écran
+                } else {
+                    const loseText = this.add.text(
+                        this.cameras.main.centerX,
+                        this.cameras.main.centerY,
+                        'Vous avez perdu ! Réessayez...',
+                        {
+                            fontSize: '24px',
+                            fill: '#ff0000',
+                            backgroundColor: '#000000',
+                            padding: { x: 10, y: 5 }
+                        }
+                    ).setOrigin(0.5).setScrollFactor(0);
+                    
+
+                    this.time.delayedCall(3000, () => {
+                        loseText.destroy();
+                        this.scene.resume();
+                    });
+
+                    console.log('Mini-jeu échoué.');
+                }
+    
+                this.scene.resume();
+            }
+        });
+    }    
+    
     update() {
 
         if (this.timeRemaining > 0) {
