@@ -5,8 +5,8 @@ import { AUTO, Game } from 'phaser';
 //  https://newdocs.phaser.io/docs/3.70.0/Phaser.Types.Core.GameConfig
 const config = {
     type: AUTO,
-    width: 336,
-    height: 336,
+    width: 1920,
+    height: 1080,
     parent: 'game-container',
     backgroundColor: '#028af8',
     physics: {
@@ -20,7 +20,7 @@ const config = {
         MainGame
     ],
     scale: {
-        zoom: 7
+        zoom: 3
     }
 };
 
