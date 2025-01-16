@@ -17,6 +17,8 @@ export class Game extends Scene
         this.timeRemaining = this.timeLimit;  // Temps restant
         this.timerText = null; // Texte qui affichera le timer
         this.completedMissions = {};
+        this.roomLighting = {};
+        this.currentRoomName = null;
     }
 
     preload ()
@@ -69,7 +71,7 @@ export class Game extends Scene
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
-        this.miniGames = [SwitchPuzzleMiniGame, MathPuzzleMiniGame];
+        this.miniGames = [SwitchPuzzleMiniGame, MathPuzzleMiniGame, HangmanMiniGame, MemoryGameMiniGame, OddOneOutMiniGame];
 
          this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
@@ -167,7 +169,7 @@ export class Game extends Scene
 
         let isInZone = false;
         let isInteracting = false;
-
+        
         roomZones.objects.forEach(zone => {
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
                 .setOrigin(0)
@@ -177,12 +179,15 @@ export class Game extends Scene
             this.physics.add.overlap(this.player, zoneArea, () => {
                 isInZone = true;
                 const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
+                this.currentRoomName = roomName;
                 this.zoneLabels.setText(roomName);
+                console.log(`Joueur est maintenant dans la zone : ${roomName}`);
+
             });
         });
 
         // Afficher les hitboxes des interrupteurs
-        this.physics.world.createDebugGraphic();
+        //this.physics.world.createDebugGraphic();
 
         let currentInteractable = null;  // Stocke l'objet avec lequel le joueur peut interagir
 
@@ -191,16 +196,31 @@ export class Game extends Scene
                 const { sprite, type } = currentInteractable;
         
                 if (type === 'interupteur') {
-                    const newTexture = sprite.texture.key === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
+                    if (!this.currentRoomName) {
+                        console.warn('Aucune pièce détectée pour le joueur.');
+                        return;
+                    }
+        
+                    const room = this.roomLighting[this.currentRoomName];
+        
+                    if (!room) {
+                        console.warn(`La pièce ${this.currentRoomName} n'est pas définie dans roomLighting.`);
+                        return;
+                    }
+        
+                    // Inverser l'état de l'interrupteur
+                    room.isOn = !room.isOn;
+                    const newTexture = room.isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
                     sprite.setTexture(newTexture);
-                    this.interactionText.setText('');
+        
+                    // Mettre à jour l'éclairage
+                    this.updateRoomLighting(this.currentRoomName);
                 } else if (type === 'bottle') {
                     this.interactionText.setText('Laxatif ajouté');
                 } else if (type === 'computer') {
                     if (sprite.texture.key === 'computerOn') {
-                        // Filtrer les missions non terminées
                         const availableMiniGames = this.miniGames.filter(
-                            (miniGame) => !this.completedMissions[miniGame.name]
+                            miniGame => !this.completedMissions[miniGame.name]
                         );
         
                         if (availableMiniGames.length === 0) {
@@ -208,28 +228,44 @@ export class Game extends Scene
                             return;
                         }
         
-                        // Sélectionner un mini-jeu aléatoire parmi ceux disponibles
                         const randomIndex = Phaser.Math.Between(0, availableMiniGames.length - 1);
                         const selectedMiniGame = availableMiniGames[randomIndex];
-        
-                        this.startMiniGame(selectedMiniGame, sprite); // Passer le sprite de l’ordinateur
+                        this.startMiniGame(selectedMiniGame, sprite);
                     }
                 }
         
-                currentInteractable = null;  // Réinitialiser après interaction
+                currentInteractable = null;
             }
-        });           
+        });                      
         
         // Définir les couches interactives
         interupteurLayer.objects.forEach(obj => {
-            const isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            // Assurez-vous de récupérer la propriété `room_name` en vérifiant son existence
+            const roomName = obj.properties?.find(p => p.name === 'room_name')?.value || 'unknown';
+        
+            const isOn = obj.properties?.find(p => p.name === 'check')?.value || false;
             const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+        
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
                 this.setInteraction(sprite, 'interupteur', 'Appuyez sur E pour interagir');
             });
+        
+            // Si la pièce est inconnue, on ne fait rien
+            if (roomName === 'unknown') return;
+        
+            // Stocker l'état et la zone associée dans `this.roomLighting`
+            if (!this.roomLighting[roomName]) {
+                this.roomLighting[roomName] = { interupteur: sprite, isOn, zone: null };
+            }
+        
+            // Associer l'interrupteur à la zone correspondante
+            this.roomLighting[roomName].zone = roomZones.objects.find(zone => 
+                zone.properties?.find(p => p.name === 'room_name')?.value === roomName
+            );
         });
+        
         
         bottleLayer.objects.forEach(obj => {
             const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive();
@@ -292,10 +328,26 @@ export class Game extends Scene
             },
             loop: true
         });
+
+        //lumières
+
+        // Calque noir global couvrant toute la carte
+        this.darknessOverlay = this.add.graphics();
+        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
+        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
+
+        // Masque dynamique pour le cercle de lumière autour du joueur
+        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
+
+        // Appliquer le masque normal (pas inversé)
+        const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
+        mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
+        this.darknessOverlay.setMask(mask);
+
+
     }
 
     startMiniGame(miniGameClass, computerSprite) {
-        this.scene.pause();
         this.scene.launch('MiniGameLauncher', {
             miniGameClass: miniGameClass,
             onEnd: (success) => {
@@ -322,13 +374,11 @@ export class Game extends Scene
 
                     this.time.delayedCall(3000, () => {
                         loseText.destroy();
-                        this.scene.resume();
                     });
 
                     console.log('Mini-jeu échoué.');
                 }
     
-                this.scene.resume();
             }
         });
     }    
@@ -428,6 +478,40 @@ export class Game extends Scene
         this.graphics.fillStyle(0xffa500);
         this.graphics.fillRoundedRect(10, 10, (this.burnout / this.burnoutMax) * 100, 12, 5);
         
+        //lumières
+        this.lightMask.clear();
+
+        // Rayon du cercle de lumière
+        const gradientRadius = 75;
+
+        // Dessiner un cercle avec un dégradé pour simuler la lumière
+        for (let r = gradientRadius; r > 0; r -= 10) {
+            const alpha = r / gradientRadius; // Alpha décroissant
+            this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
+            this.lightMask.fillCircle(this.player.x - 13, this.player.y -3, r); // Centrer le cercle sur le joueur
+        }
+    }
+    
+    updateRoomLighting(roomName) {
+        const room = this.roomLighting[roomName];
+    
+        if (!room || !room.zone) {
+            console.warn(`Zone introuvable pour la pièce : ${roomName}`);
+            return;
+        }
+    
+        const { x, y, width, height } = room.zone;
+    
+        if (room.isOn) {
+            // Éclairer la pièce
+            this.darknessOverlay.clear();
+            this.darknessOverlay.fillStyle(0x000000, 0); // Transparence
+            this.darknessOverlay.fillRect(x, y, width, height);
+        } else {
+            // Assombrir la pièce
+            this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
+            this.darknessOverlay.fillRect(x, y, width, height);
+        }
     }
     
 }

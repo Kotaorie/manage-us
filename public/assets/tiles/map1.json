@@ -204,6 +204,40 @@
                  "width":222,
                  "x":33,
                  "y":33
+                }, 
+                {
+                 "height":604,
+                 "id":97,
+                 "name":"couloir_room",
+                 "properties":[
+                        {
+                         "name":"room_name",
+                         "type":"string",
+                         "value":"Couloir"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":118.33,
+                 "x":276,
+                 "y":37.3333333333333
+                }, 
+                {
+                 "height":165.666666666667,
+                 "id":101,
+                 "name":"manager_couloir",
+                 "properties":[
+                        {
+                         "name":"room_name",
+                         "type":"string",
+                         "value":"Couloir manager"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":40.33,
+                 "x":215,
+                 "y":313.33
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -556,7 +590,7 @@
          "y":0
         }],
  "nextlayerid":15,
- "nextobjectid":95,
+ "nextobjectid":102,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.1",
