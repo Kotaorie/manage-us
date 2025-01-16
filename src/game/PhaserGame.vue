@@ -53,7 +53,7 @@ onMounted(() => {
     });
     
     props.socket.on('finishGame', (state) => {
-        window.location.href('http://among-us.online')
+        window.location.href = 'http://manag-us.online'
     })
 
     EventBus.on('pauseGame', (value) => {
