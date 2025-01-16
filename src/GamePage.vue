@@ -31,7 +31,7 @@ async function loadDataUser() {
             socket.on('connect', () => {
                 console.log('Connected to WebSocket server with ID:', socket.id)
                 setTimeout(() => {
-                    socket.emit("startRoom", token_room)
+                    socket.emit("startRoom", {token_room, token_player,user: response})
                 }, 1000)
             });
             user.value = response

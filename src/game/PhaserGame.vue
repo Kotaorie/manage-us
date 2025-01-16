@@ -38,6 +38,7 @@ const burnOut = ref(0)
 const isBurnOut = ref(false)
 const isVired = ref(false)
 const roomName = ref('')
+const remainingTime = ref(50)
 
 onMounted(() => {
 
@@ -50,12 +51,17 @@ onMounted(() => {
         scene.value = currentScene;
 
     });
+    
+    props.socket.on('finishGame', (state) => {
+        window.location.href('http://among-us.online')
+    })
 
     EventBus.on('pauseGame', (value) => {
         isPause.value = value.status
         if (value.status) {
             console.log('on fait le dayli')
             stateRoom.value = value.stateRoom
+            startCountdown(50)
             setTimeout(() => {
                 console.log("récupération résultat");
                 props.socket.emit('closeVote', stateRoom.value.roomKey)
@@ -90,7 +96,7 @@ onMounted(() => {
     })
 
     props.socket.on('resultVote', (data) => {
-        console.log('resulVote : ', vote)
+        console.log('resulVote : ', data)
         isResultVote.value = true
         result.value = data
     })
@@ -104,7 +110,16 @@ async function vote(key) {
     props.socket.emit('vote', {userKey: key, roomKey: stateRoom.value.roomKey})
     isVote.value = true
 }
-
+function startCountdown(duration) {
+    remainingTime.value = duration;
+    const interval = setInterval(() => {
+        if (remainingTime.value > 0) {
+            remainingTime.value--;
+        } else {
+            clearInterval(interval);
+        }
+    }, 1000);
+}
 onUnmounted(() => {
 
     if (game.value) {
@@ -145,6 +160,7 @@ defineExpose({scene, game});
             <div class="pourcentage">{{ Math.round(stateRoom.gameScore / stateRoom.victoryScore * 100) }}%</div>
         </div>
         <div class="text-pause">
+            <p>Temps restant pour voter : {{ Math.floor(remainingTime / 60) }}:{{ String(remainingTime % 60).padStart(2, '0') }}</p>
             <p>Temps de Daily ! Vous avez une minute</p>
         </div>
         <div class="card-content">
