@@ -50,10 +50,10 @@ onMounted(() => {
     });
 
     EventBus.on('pauseGame', (value) => {
-        isPause.value = value
-        if (value) {
+        isPause.value = value.status
+        if (value.status) {
             console.log('on fait le dayli')
-            props.socket.emit('dayli', props.roomKey)
+            stateRoom.value = value.stateRoom
             setTimeout(() => {
                 console.log("récupération résultat");
                 props.socket.emit('closeVote', stateRoom.value.roomKey)

@@ -630,10 +630,10 @@ export class Game extends Scene
     }
 
     handleGamePause() {
-        EventBus.emit('pauseGame', true)
+        EventBus.emit('pauseGame', {status: true, stateRoom: this.state})
         this.scene.pause()
         setTimeout(() => {
-            EventBus.emit('pauseGame', false)
+            EventBus.emit('pauseGame', {status: false})
             this.scene.resume()
         }, 60000);
     }
