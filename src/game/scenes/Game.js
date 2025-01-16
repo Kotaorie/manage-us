@@ -25,6 +25,7 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
+        this.roomName=""
     }
 
     preload ()
@@ -218,6 +219,7 @@ export class Game extends Scene
             this.physics.add.overlap(this.player, zoneArea, () => {
                 isInZone = true;
                 const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
+                this.zoneLabels.setText(roomName)
                 EventBus.emit('room', roomName)
             });
         });
@@ -345,7 +347,7 @@ export class Game extends Scene
         });
 
         // Compteur du début du jeu
-        this.countdownText = this.add.text(200, 50, this.countdown, {
+        this.countdownText = this.add.text(150, 150, this.countdown, {
             font: '32px Arial',
             fill: '#ffffff',
             stroke: '#000000',
