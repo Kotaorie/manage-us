@@ -118,6 +118,13 @@ export class Game extends Scene
         const sinkLayer = map.getObjectLayer('Sink');
         this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
 
+         //lumières
+        this.darknessOverlay = this.add.graphics();
+        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
+        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
+
+        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
+
         this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
             fill: '#ffffff',
@@ -216,6 +223,20 @@ export class Game extends Scene
             
             this.physics.add.existing(zoneArea, true);
             this.physics.add.overlap(this.player, zoneArea, () => {
+                this.lightMask.clear()
+                const roomWidth = zone.width;
+                const roomHeight = zone.height;
+                const roomCenterX = zone.x + roomWidth / 2;
+                const roomCenterY = zone.y + roomHeight / 2;
+                const mask2 = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
+                mask2.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
+                this.darknessOverlay.setMask(mask2);
+
+                // Dessiner un rectangle avec un dégradé pour simuler la lumière
+                for (let alpha = 1; alpha > 0; alpha -= 0.1) {
+                    this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
+                    this.lightMask.fillRect(roomCenterX - roomWidth / 2, roomCenterY - roomHeight / 2, roomWidth, roomHeight); // Centrer le rectangle sur la pièce
+                }
                 isInZone = true;
                 const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
                 EventBus.emit('room', roomName)
@@ -371,20 +392,7 @@ export class Game extends Scene
             });
         });
 
-        //lumières
-
-        // Calque noir global couvrant toute la carte
-        this.darknessOverlay = this.add.graphics();
-        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
-        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
-
-        // Masque dynamique pour le cercle de lumière autour du joueur
-        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
-
-        // Appliquer le masque normal (pas inversé)
-        const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
-        mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
-        this.darknessOverlay.setMask(mask);
+       
     }
 
     startMiniGame(scene, miniGameClass, computerSprite, indexMission) {
@@ -439,17 +447,8 @@ export class Game extends Scene
     }
 
     update() {
-        this.lightMask.clear();
-
-        // Rayon du cercle de lumière
-        const gradientRadius = 75;
-
-        // Dessiner un cercle avec un dégradé pour simuler la lumière
-        for (let r = gradientRadius; r > 0; r -= 10) {
-            const alpha = r / gradientRadius; // Alpha décroissant
-            this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
-            this.lightMask.fillCircle(this.player.x - 13, this.player.y -3, r); // Centrer le cercle sur le joueur
-        }
+        const circle = new Phaser.Geom.Circle(this.player.x, this.player.y, 100);
+        this.lightMask.fillCircleShape(circle);
         
         if (!this.isGameStarted) {
             // Si le jeu n'a pas commencé, empêcher le mouvement du joueur
