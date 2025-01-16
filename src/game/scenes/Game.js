@@ -62,11 +62,13 @@ export class Game extends Scene
         this.otherPlayers = this.physics.add.group()
 
         scene.socket.on("setState", function (state) {
-            const { roomKey, players, numPlayers } = state;
+            const { roomKey, players, numPlayers, gameScore, numVote } = state;
 
             scene.state.roomKey = roomKey;
             scene.state.players = players;
             scene.state.numPlayers = numPlayers;
+            scene.state.gameScore = gameScore
+            scene.state.numVote = numVote
             console.log(scene.state)
         });
 
@@ -472,7 +474,7 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        if ((this.timeRemaining <= 450 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
+        if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
             this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
             this.handleGamePause(); // Appeler la fonction de pause
         }

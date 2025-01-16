@@ -2,6 +2,7 @@
 import {onMounted, onUnmounted, ref, defineProps} from 'vue';
 import {EventBus} from './EventBus';
 import StartGame from './main';
+import {io} from "socket.io-client";
 
 // Save the current scene instance
 const scene = ref();
@@ -31,12 +32,13 @@ const props = defineProps({
 const isPause = ref(false)
 const isResultVote = ref(false)
 const result = ref(undefined)
-const minute = ref('15')
+const minute = ref('10')
 const second = ref('00')
 const burnOut = ref(0)
 const isBurnOut = ref(false)
 const isVired = ref(false)
 const roomName = ref('')
+
 onMounted(() => {
 
     game.value = StartGame('game-container', props.user, props.socket, props.missions);
