@@ -142,8 +142,30 @@ onUnmounted(() => {
         game.value.destroy(true);
         game.value = null;
     }
-
 });
+
+//piège début
+const isTrapped = ref(false);
+const trapCooldownRemaining = ref(20);
+const canPlaceTrap = ref(true);
+
+EventBus.on('trap-cooldown-update', (cooldown) => {
+    trapCooldownRemaining.value = cooldown;
+});
+
+EventBus.on('trap-ready', () => {
+    canPlaceTrap.value = true;
+});
+
+function placeTrap() {
+    isTrapped.value = true;
+    canPlaceTrap.value = false;
+    setTimeout(() => {
+        isTrapped.value = false;
+    }, 20000);
+    EventBus.emit('place-trap');
+}
+//piège fin
 
 defineExpose({scene, game});
 </script>
@@ -212,6 +234,40 @@ defineExpose({scene, game});
             src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXJsZ2prN24zb2dxNjYyazY5dnhidzNweWZkcWYyempuMndqczl5dSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpCp1922KQ/giphy.gif"
             alt="Loading GIF" class="gif">
     </div>
+
+    <section>
+        <div class="trap-container" v-if="props.user.is_impostor">
+            <button
+                :disabled="!canPlaceTrap"
+                @click="placeTrap"
+                class="trap-button"
+            >
+                Poser un piège
+            </button>
+            <p v-if="!canPlaceTrap">
+                Recharge du piège : {{ trapCooldownRemaining }}s
+            </p>
+            <div class="trap-cooldown-bar">
+                <div
+                    class="trap-cooldown-fill"
+                    :style="{ width: `${(trapCooldownRemaining / 20) * 100}%` }"
+                ></div>
+            </div>
+        </div>
+        <div v-if="isTrapped" class="gif-container">
+            <p class="gif-text">
+                Vous êtes pris dans un piège ! 
+                <br />
+                Temps restant : {{ trapCooldownRemaining }}s
+            </p>
+            <img 
+                src="https://www.photofunky.net/output/image/d/6/6/b/d66b36/photofunky.gif" 
+                alt="Piège activé" 
+                class="trap-gif" 
+            />
+        </div>
+    </section>
+
     <div v-if="isVired" class="gif-container">
         <p class="gif-text">Vous avez été viré... sans pot de départ 😱</p>
         <img src="https://i.makeagif.com/media/4-01-2016/Jcq-nJ.gif" class="gif" alt="vous etes le maillon faible">
@@ -491,5 +547,80 @@ defineExpose({scene, game});
     line-height: 1.6; /* Espacement des lignes pour plus de lisibilité */
     color: #ffcccb; /* Rouge clair pour adoucir les phrases secondaires */
 }
+
+/*piège début */
+.trap-container {
+    position: fixed;
+    bottom : 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border-radius: 8px;
+    color: white;
+    text-align: center;
+}
+
+.trap-button {
+    background-color: #ff5722;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.trap-button:disabled {
+    background-color: #777;
+    cursor: not-allowed;
+}
+
+.trap-cooldown-bar {
+    width: 100%;
+    height: 10px;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    margin-top: 5px;
+    position: relative;
+}
+
+.trap-cooldown-fill {
+    height: 100%;
+    background-color: #ff5722;
+    width: 0%; /* Ajusté dynamiquement */
+    transition: width 1s linear;
+    border-radius: 5px;
+}
+
+.gif-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.7); /* Fond semi-transparent */
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+
+.gif-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ff5722;
+}
+
+.trap-gif {
+    width: 300px; /* Ajustez la taille selon vos besoins */
+    height: auto;
+    border-radius: 10px;
+    border: 3px solid #ff5722;
+}
+
+
+/*piège fin*/
 
 </style>

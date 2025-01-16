@@ -25,6 +25,12 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
+
+        //piège début
+        this.canPlaceTrap = true; // Vérifie si un imposteur peut poser un piège
+        this.trapCooldown = 20000; // Temps de recharge en ms (20 secondes)
+        this.trapDuration = 20000; // Durée de l'effet du piège en ms
+        //piège fin
     }
 
     preload ()
@@ -383,6 +389,17 @@ export class Game extends Scene
         const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
         mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
         this.darknessOverlay.setMask(mask);
+
+        //piège début
+        this.traps = this.physics.add.group();
+
+        this.trapCooldownRemaining = 0;
+
+        EventBus.on('place-trap', () => {
+            this.placeTrap(this.player.x, this.player.y);
+        });
+        
+        //piège fin
     }
 
     startMiniGame(scene, miniGameClass, computerSprite, indexMission) {
@@ -456,8 +473,8 @@ export class Game extends Scene
         const scene = this
 
         if (this.timeRemaining > 0) {
-            this.timeRemaining -= 1 / 60; // Décrémenter de 1/60e chaque frame
-        }
+            this.timeRemaining -= this.game.loop.delta / 1000; // Utilise le delta time
+        }        
 
         if (isNaN(this.timeRemaining)) {
             this.timeRemaining = 0;  // Remise à zéro si NaN
@@ -590,6 +607,53 @@ export class Game extends Scene
             y: this.player.y,
             rotation: this.player.rotation,
         };
+
+        //piège début
+        this.physics.add.overlap(this.player, this.traps, (player, trap) => {
+            if (!trap.active) return;
+
+            if (this.user.is_impostor) {
+                return;
+            }
+        
+            // Désactive le piège pour éviter les collisions répétées
+            trap.destroy();
+        
+            // Immobilise le joueur
+            player.setVelocity(0);
+            this.isBlocked = true;
+        
+            // Affiche un message temporaire d'immobilisation
+            const immobilizedText = this.add.text(
+                this.cameras.main.centerX,
+                this.cameras.main.centerY,
+                'Vous êtes pris dans un piège !',
+                {
+                    fontSize: '24px',
+                    fill: '#ff0000',
+                    backgroundColor: '#000000',
+                    padding: { x: 10, y: 5 },
+                }
+            ).setOrigin(0.5);
+        
+            // Délai pour libérer le joueur après la durée du piège
+            let remainingTime = this.trapDuration / 1000; // Convertir en secondes
+            const timer = this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    remainingTime--;
+                    immobilizedText.setText(`Vous êtes pris dans un piège !\nTemps restant : ${remainingTime}s`);
+        
+                    if (remainingTime <= 0) {
+                        timer.remove(false);
+                        immobilizedText.destroy();
+                        this.isBlocked = false; // Libère le joueur
+                    }
+                },
+                loop: true,
+            });
+        });              
+        //piège fin        
     }
 
     addPlayer(scene, playerInfo) {
@@ -638,4 +702,49 @@ export class Game extends Scene
             this.scene.resume()
         }, 60000);
     }
+
+    //piège début
+    placeTrap(x, y) {
+        if (this.canPlaceTrap) {
+            const trap = this.add.rectangle(x, y, 32, 32);
+            this.physics.add.existing(trap); // Active la physique sur cet objet
+            trap.body.setAllowGravity(false); // Pas de gravité sur le piège
+            trap.body.setImmovable(true); // Le piège ne bouge pas
+
+            trap.active = true; // Marque le piège comme actif
+            this.traps.add(trap);
+    
+            EventBus.emit('trap-placed', { x: trap.x, y: trap.y });
+    
+            this.canPlaceTrap = false;
+            this.trapCooldownRemaining = this.trapCooldown / 1000; // Initialisez le cooldown en secondes
+    
+            this.startTrapCooldown(); // Lance le cooldown
+        }
+    }
+    startTrapCooldown() {
+        if (this.trapCooldownTimer) {
+            this.trapCooldownTimer.remove(false); // Évitez les doublons
+        }
+    
+        this.trapCooldownTimer = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                if (this.trapCooldownRemaining > 0) {
+                    this.trapCooldownRemaining--;
+                    EventBus.emit('trap-cooldown-update', this.trapCooldownRemaining);
+    
+                    if (this.trapCooldownRemaining <= 0) {
+                        this.canPlaceTrap = true;
+                        EventBus.emit('trap-ready');
+                        this.trapCooldownTimer.remove(false);
+                        this.trapCooldownTimer = null; // Nettoie la référence
+                    }
+                }
+            },
+            loop: true,
+        });
+    }
+           
+    //piège fin    
 }
