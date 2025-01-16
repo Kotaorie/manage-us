@@ -23,7 +23,7 @@ async function loadDataUser() {
     fetch(`http://api.manag-us.online/api/player/info/${token_player}`, options)
         .then(response => response.json())
         .then(response => {
-            socket = io('http://ws.manag-us.com')
+            socket = io('http://195.35.25.30:3001')
 
             socket.on('connect', () => {
                 console.log('Connected to WebSocket server with ID:', socket.id)
