@@ -17,16 +17,13 @@ const config = {
             debug: false
         }
     },
-    scene: [
-        MainGame, MiniGameLauncher
-    ],
     scale: {
         zoom: 3
     }
 };
 
-const StartGame = (parent) => {
-    return new Game({ ...config, parent });
+const StartGame = (parent, user, socket, missions) => {
+    return new Game({ ...config, parent, scene: [ new MainGame(user, socket, missions), new MiniGameLauncher() ] });
 }
 
 export default StartGame;

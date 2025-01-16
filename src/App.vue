@@ -3,5 +3,5 @@ import PhaserGame from './game/PhaserGame.vue';
 </script>
 
 <template>
-    <PhaserGame ref="phaserRef" />
+    <router-view />
 </template>
