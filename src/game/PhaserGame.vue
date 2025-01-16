@@ -36,6 +36,7 @@ const second = ref('00')
 const burnOut = ref(0)
 const isBurnOut = ref(false)
 const isVired = ref(false)
+const roomName = ref('')
 onMounted(() => {
 
     game.value = StartGame('game-container', props.user, props.socket, props.missions);
@@ -64,6 +65,10 @@ onMounted(() => {
         const {minutes, seconds} = data
         minute.value = minutes
         second.value = seconds
+    });
+
+    EventBus.on('room', (data) => {
+        roomName.value = data
     });
 
     EventBus.on('burn-out', (data) => {
@@ -176,6 +181,9 @@ defineExpose({scene, game});
     <div v-if="isVired" class="gif-container">
         <p class="gif-text">Vous avez été viré... sans pot de départ 😱</p>
         <img src="https://i.makeagif.com/media/4-01-2016/Jcq-nJ.gif" class="gif" alt="vous etes le maillon faible">
+    </div>
+    <div class="div-room">
+        <p>{{ roomName }}</p>
     </div>
 
 
@@ -365,7 +373,7 @@ defineExpose({scene, game});
 .burnout-text {
     font-size: 1.5rem;
     font-weight: bold;
-    color: #333;
+    color: #6b6a6a;
 }
 
 /* Conteneur pour le GIF, centré au milieu de la page */
@@ -398,6 +406,19 @@ defineExpose({scene, game});
     height: auto; /* Garder les proportions du GIF */
     border-radius: 10px; /* Coins arrondis pour le GIF */
     border: 4px solid #ff5722; /* Bordure colorée pour le GIF */
+}
+
+.div-room {
+    position: absolute;
+    left: 50%;
+    top: 10%;
+    transform: translateX(-50%);
+}
+.div-room p {
+    font-size: 1.5rem;
+    color: white;
+    font-weight: bold;
+    text-transform: uppercase;
 }
 
 

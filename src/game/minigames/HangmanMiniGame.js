@@ -14,7 +14,6 @@ export class HangmanMiniGame {
 
     start(onEndCallback) {
         this.onEndCallback = onEndCallback;
-
         this.initGame();
     }
 
@@ -24,6 +23,8 @@ export class HangmanMiniGame {
         this.displayedWord = Array(this.selectedWord.length).fill('_');
         this.remainingLives = 7;
         this.guessedLetters = [];
+
+        console.log(this.displayedWord)
 
         // Nettoyer la scène
         this.scene.children.removeAll();
@@ -50,7 +51,7 @@ export class HangmanMiniGame {
         this.wordText = this.scene.add.text(
             width * 0.50,
             height * 0.46,
-            this.displayedWord.join(' '),
+            this.displayedWord.map(char => char === '_' ? '{\u2588}' : char).join(' '),  // Utilisation d'espaces pour séparer les tirets
             { fontSize: Math.max(18, width * 0.012), fill: '#fff' }
         ).setOrigin(0.5);
 

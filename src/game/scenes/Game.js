@@ -138,7 +138,7 @@ export class Game extends Scene
 
         // });
 
-        this.player = this.physics.add.sprite(200, 50, 'perso');
+        this.player = this.physics.add.sprite(160, 160, 'perso');
         this.player.body.setSize(this.player.width /4 , this.player.height / 4); // Adapte la taille à la moitié si besoin
         this.player.body.setOffset(7,15);
         this.player.setScale(1.5)
@@ -213,12 +213,12 @@ export class Game extends Scene
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
                 .setOrigin(0)
                 .setVisible(false);
-
+            
             this.physics.add.existing(zoneArea, true);
             this.physics.add.overlap(this.player, zoneArea, () => {
                 isInZone = true;
                 const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
-                this.zoneLabels.setText(roomName);
+                EventBus.emit('room', roomName)
             });
         });
 

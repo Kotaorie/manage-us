@@ -6,14 +6,17 @@ import { io } from 'socket.io-client'
 import {HangmanMiniGame} from "@/game/minigames/HangmanMiniGame.js";
 import {OddOneOutMiniGame} from "@/game/minigames/OddOneOutMiniGame.js";
 import {MemoryGameMiniGame} from "@/game/minigames/MemoryGameMiniGame.js";
-import {EventBus} from "@/game/EventBus.js";
+import {SwitchPuzzleMiniGame} from "@/game/minigames/SwitchPuzzleMiniGame.js";
 
+import {EventBus} from "@/game/EventBus.js";
+import { MathPuzzleMiniGame } from './game/minigames/MathPuzzleMiniGame ';
+ 
 const route = useRoute();
 const token_room = route.params.token_room;
 const token_player = route.query.player
 const user = ref({})
 const missions = ref({})
-const minigames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame]
+const minigames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame]
 let socket;
 async function loadDataUser() {
     const options = {
@@ -33,18 +36,20 @@ async function loadDataUser() {
             });
             user.value = response
             user.value.token = token_player
-            missions.value = response.room?.theme?.missions
+            missions.value = response.room?.theme?.missions;
             if (!user.value.is_impostor) {
                 missions.value = missions.value.map((item, index) => {
+                    const randomIndex = Math.floor(Math.random() * minigames.length);
                     return {
                         name: item.name,
-                        miniGame: minigames[index] ?? minigames[0],
+                        miniGame: minigames[randomIndex] ?? minigames[0],
                         isFinish: false,
                         isTour: index === 0
-                    }
-                })
+                    };
+                });
             }
-            console.log(missions.value)
+            console.log(missions.value);
+
         })
         .catch(err => console.error(err))
 }
