@@ -555,11 +555,13 @@ export class Game extends Scene
         }
         
         // burn out
-        if (this.burnout >= this.burnoutMax) {
-            EventBus.emit('burn-out-max', true)
-            this.isBlocked = true
+        if (!this.user.is_impostor) {
+            if (this.burnout >= this.burnoutMax) {
+                EventBus.emit('burn-out-max', true)
+                this.isBlocked = true
+            }
+            EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
         }
-        EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
         
         
         

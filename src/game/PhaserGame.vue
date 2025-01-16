@@ -166,7 +166,7 @@ defineExpose({scene, game});
     <div class="chrono">
         <span class="time">{{ minute }}:{{ second }}</span>
     </div>
-    <div class="burnout-container">
+    <div v-if="!props.user.is_impostor" class="burnout-container">
         <div class="burnout-bar">
             <div class="burnout-fill" :style="{ width: burnOut + '%' }"></div>
         </div>
