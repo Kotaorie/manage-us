@@ -25,6 +25,7 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
+        this.hideRoom = []
     }
 
     preload ()
@@ -66,7 +67,6 @@ export class Game extends Scene
             scene.state.roomKey = roomKey;
             scene.state.players = players;
             scene.state.numPlayers = numPlayers;
-            console.log(scene.state)
         });
 
         this.socket.on("currentPlayers", function (arg) {
@@ -224,6 +224,14 @@ export class Game extends Scene
             this.physics.add.existing(zoneArea, true);
             this.physics.add.overlap(this.player, zoneArea, () => {
                 this.lightMask.clear()
+                isInZone = true;
+                const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
+                EventBus.emit('room', roomName)
+                
+                if(this.hideRoom.includes(roomName)){
+                    return
+                }
+
                 const roomWidth = zone.width;
                 const roomHeight = zone.height;
                 const roomCenterX = zone.x + roomWidth / 2;
@@ -237,9 +245,6 @@ export class Game extends Scene
                     this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
                     this.lightMask.fillRect(roomCenterX - roomWidth / 2, roomCenterY - roomHeight / 2, roomWidth, roomHeight); // Centrer le rectangle sur la pièce
                 }
-                isInZone = true;
-                const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
-                EventBus.emit('room', roomName)
             });
         });
 
@@ -250,12 +255,17 @@ export class Game extends Scene
 
         this.input.keyboard.on('keydown-E', () => {
             if (currentInteractable) {
-                const { sprite, type } = currentInteractable;
+                var { sprite, type, room } = currentInteractable;
 
                 if (type === 'interupteur') {
                     const newTexture = sprite.texture.key === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
                     sprite.setTexture(newTexture);
                     this.interactionText.setText('');
+                    if(sprite.texture.key === 'interupteurOnTexture'){
+                        this.hideRoom.push(room)
+                    }else {
+                        this.hideRoom = this.hideRoom.filter(roomName => roomName !== room)
+                    }
                 } else if (type === 'bottle') {
                     this.interactionText.setText('Laxatif ajouté');
                 } else if (type === 'computer') {
@@ -268,7 +278,6 @@ export class Game extends Scene
                         let filteredMissions = this.missions
                             .map((item, index) => ({ item, index }))
                             .filter(({ item }) => item.isTour)
-                        console.log(filteredMissions)
                         if (filteredMissions.length === 0) {
                             this.interactionText.setText('Toutes les missions ont été terminées !');
                             return;
@@ -285,12 +294,13 @@ export class Game extends Scene
 
         // Définir les couches interactives
         interupteurLayer.objects.forEach(obj => {
-            const isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            var isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            const room = obj.properties.find(p => p.name === 'room')?.value || 'Zone inconnue';
             const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
-                this.setInteraction(sprite, 'interupteur', 'Appuyez sur E pour interagir');
+                this.setInteraction(sprite, 'interupteur', 'Press E', room);
             });
         });
 
@@ -324,8 +334,8 @@ export class Game extends Scene
 
 
         // Fonction utilitaire pour définir une interaction
-        this.setInteraction = (sprite, type, text) => {
-            currentInteractable = { sprite, type };
+        this.setInteraction = (sprite, type, text, room) => {
+            currentInteractable = { sprite, type, room };
             this.interactionText.setText(text);
         };
 
@@ -400,7 +410,6 @@ export class Game extends Scene
             miniGameClass: miniGameClass,
             onEnd: (success) => {
                 if (success) {
-                    console.log('Mini-jeu réussi !');
                     this.completedMissions[miniGameClass.name] = true;
                     EventBus.emit('missionCompleted', indexMission);
                     this.socket.emit("successMission", this.state.roomKey)
@@ -440,15 +449,18 @@ export class Game extends Scene
                         this.scene.resume();
                     });
 
-                    console.log('Mini-jeu échoué.');
                 }
             }
         });
     }
 
     update() {
-        const circle = new Phaser.Geom.Circle(this.player.x, this.player.y, 100);
+        const circle = new Phaser.Geom.Circle(this.player.x, this.player.y, 75);
         this.lightMask.fillCircleShape(circle);
+
+        // Adjust the depth of the darkness overlay to hide objects
+        this.darknessOverlay.setDepth(10);
+        this.lightMask.setDepth(10);
         
         if (!this.isGameStarted) {
             // Si le jeu n'a pas commencé, empêcher le mouvement du joueur
