@@ -25,7 +25,6 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
-        this.roomName=""
     }
 
     preload ()
@@ -63,12 +62,7 @@ export class Game extends Scene
 
         scene.socket.on("setState", function (state) {
             const { roomKey, players, numPlayers, gameScore, numVote } = state;
-
-            scene.state.roomKey = roomKey;
-            scene.state.players = players;
-            scene.state.numPlayers = numPlayers;
-            scene.state.gameScore = gameScore
-            scene.state.numVote = numVote
+            scene.state = state
             console.log(scene.state)
         });
 
@@ -399,7 +393,7 @@ export class Game extends Scene
                     console.log('Mini-jeu réussi !');
                     this.completedMissions[miniGameClass.name] = true;
                     EventBus.emit('missionCompleted', indexMission);
-                    this.socket.emit("successMission", this.state.roomKey)
+                    this.socket.emit("successMission", {roomKey: this.state.roomKey, playerKey: this.user.token})
                     
                     const offComputers = this.computers.filter(computer => !computer.isOn)
                     
@@ -474,15 +468,17 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
-            this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
-            this.handleGamePause(); // Appeler la fonction de pause
-        }
+        // if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
+        //     this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
+        //     this.handleGamePause(); // Appeler la fonction de pause
+        // }
         
         if (this.timeRemaining <= 0) {
             this.timeRemaining = 0;  // On fixe le timer à 0 quand il est écoulé
             // Vous pouvez ajouter ici une action pour la fin du jeu, comme arrêter les mouvements ou afficher un message
             this.player.setVelocity(0, 0);
+            EventBus.emit('time-end', this.state)
+            this.scene.pause()
         }
 
         if (this.burnout < this.burnoutMax) {
@@ -558,11 +554,14 @@ export class Game extends Scene
         
         // burn out
         if (!this.user.is_impostor) {
-            if (this.burnout >= this.burnoutMax) {
-                EventBus.emit('burn-out-max', true)
-                this.isBlocked = true
+            if (!this.isBlocked) {
+                if (this.burnout >= this.burnoutMax) {
+                    EventBus.emit('burn-out-max', true)
+                    this.socket.emit('userBurnOut', {roomKey: this.state.roomKey, playerKey: this.user.token})
+                    this.isBlocked = true
+                }
+                EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
             }
-            EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
         }
         
         

@@ -39,6 +39,7 @@ const isBurnOut = ref(false)
 const isVired = ref(false)
 const roomName = ref('')
 const remainingTime = ref(50)
+const isTimeEnd = ref(false)
 
 onMounted(() => {
 
@@ -53,7 +54,11 @@ onMounted(() => {
     });
     
     props.socket.on('finishGame', (state) => {
-        window.location.href = 'http://manag-us.online'
+        fetch(`http://api.manag-us.online/api/game/finish/${state.roomKey}`).then(res => {
+            if (res.success) {
+                window.location.href = 'http://manag-us.online'
+            }
+        })
     })
 
     EventBus.on('pauseGame', (value) => {
@@ -68,6 +73,17 @@ onMounted(() => {
             }, 50000)
         }
     });
+    
+    EventBus.on('time-end', (state) => {
+        isTimeEnd.value = true
+        fetch(`http://api.manag-us.online/api/game/finish/${state.roomKey}`).then(res => {
+            if (res.success) {
+                setTimeout(() => {
+                    window.location.href = 'http://manag-us.online'
+                }, 3000)
+            }
+        })
+    })
 
     EventBus.on('time', (data) => {
         const {minutes, seconds} = data
@@ -203,7 +219,11 @@ defineExpose({scene, game});
     <div class="div-room">
         <p>{{ roomName }}</p>
     </div>
-
+    <div v-if="isTimeEnd" class="game-over-card">
+        <h1>⏰ Le temps est écoulé !</h1>
+        <p>Malheureusement, le projet n'a pas pu être terminé à temps...</p>
+        <p>Réunion post-mortem prévue à la machine à café ☕.</p>
+    </div>
 
 </template>
 
@@ -439,5 +459,37 @@ defineExpose({scene, game});
     text-transform: uppercase;
 }
 
+/* Conteneur centré pour la carte de fin de jeu */
+.game-over-card {
+    position: fixed; /* Fixe la carte au milieu de l'écran */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Centrage parfait */
+    background-color: rgba(0, 0, 0, 0.85); /* Fond sombre et semi-transparent */
+    padding: 30px 40px; /* Espace interne pour un confort visuel */
+    border-radius: 15px; /* Coins arrondis pour un design plus doux */
+    text-align: center; /* Centrer le texte */
+    z-index: 10000; /* S'assurer que la carte est bien au-dessus de tout */
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Ombre pour donner de la profondeur */
+    color: white; /* Texte blanc pour le contraste */
+    max-width: 500px; /* Limiter la largeur de la carte */
+    font-family: 'Arial', sans-serif; /* Police classique et lisible */
+}
+
+/* Style pour le titre */
+.game-over-card h1 {
+    font-size: 2.5rem; /* Titre bien visible */
+    margin-bottom: 20px; /* Espacement sous le titre */
+    color: #ff5252; /* Rouge vif pour un impact dramatique */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7); /* Légère ombre pour faire ressortir le texte */
+}
+
+/* Style pour les paragraphes */
+.game-over-card p {
+    font-size: 1.3rem; /* Texte légèrement plus grand pour une meilleure lecture */
+    margin-bottom: 15px; /* Espacement entre les paragraphes */
+    line-height: 1.6; /* Espacement des lignes pour plus de lisibilité */
+    color: #ffcccb; /* Rouge clair pour adoucir les phrases secondaires */
+}
 
 </style>
