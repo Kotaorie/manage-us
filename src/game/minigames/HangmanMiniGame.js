@@ -4,7 +4,7 @@ export class HangmanMiniGame {
     constructor(scene) {
         this.scene = scene;
         this.name = 'Hangman';
-        this.wordList = ['phaser', 'javascript', 'pendu', 'jeu', 'code'];
+        this.wordList = ['plan', 'risque', 'budget', 'tache', 'equipe', 'client', 'priorite', 'objectif', 'livrable', 'planning', 'ressource', 'qualite'];
         this.selectedWord = '';
         this.displayedWord = [];
         this.remainingLives = 7;

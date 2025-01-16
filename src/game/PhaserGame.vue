@@ -173,7 +173,7 @@ defineExpose({scene, game});
             src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZXJsZ2prN24zb2dxNjYyazY5dnhidzNweWZkcWYyempuMndqczl5dSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpCp1922KQ/giphy.gif"
             alt="Loading GIF" class="gif">
     </div>
-    <div class="gif-container">
+    <div v-if="isVired" class="gif-container">
         <p class="gif-text">Vous avez été viré... sans pot de départ 😱</p>
         <img src="https://i.makeagif.com/media/4-01-2016/Jcq-nJ.gif" class="gif" alt="vous etes le maillon faible">
     </div>

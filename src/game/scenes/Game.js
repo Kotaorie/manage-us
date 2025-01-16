@@ -17,7 +17,7 @@ export class Game extends Scene
         this.lastDirection = 'down';
         this.burnout = 0;
         this.burnoutMax = 100;
-        this.timeLimit = 900;  // 15 minutes en secondes
+        this.timeLimit = 600;  // 15 minutes en secondes
         this.timeRemaining = this.timeLimit;  // Temps restant
         this.completedMissions = {};
         this.user = user
@@ -223,7 +223,7 @@ export class Game extends Scene
         });
 
         // Afficher les hitboxes des interrupteurs
-        this.physics.world.createDebugGraphic();
+        //this.physics.world.createDebugGraphic();
 
         let currentInteractable = null;  // Stocke l'objet avec lequel le joueur peut interagir
 
@@ -370,6 +370,21 @@ export class Game extends Scene
                 this.countdownText.setAlpha(0);
             });
         });
+
+        //lumières
+
+        // Calque noir global couvrant toute la carte
+        this.darknessOverlay = this.add.graphics();
+        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
+        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
+
+        // Masque dynamique pour le cercle de lumière autour du joueur
+        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
+
+        // Appliquer le masque normal (pas inversé)
+        const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
+        mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
+        this.darknessOverlay.setMask(mask);
     }
 
     startMiniGame(scene, miniGameClass, computerSprite, indexMission) {
@@ -424,6 +439,18 @@ export class Game extends Scene
     }
 
     update() {
+        this.lightMask.clear();
+
+        // Rayon du cercle de lumière
+        const gradientRadius = 75;
+
+        // Dessiner un cercle avec un dégradé pour simuler la lumière
+        for (let r = gradientRadius; r > 0; r -= 10) {
+            const alpha = r / gradientRadius; // Alpha décroissant
+            this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
+            this.lightMask.fillCircle(this.player.x - 13, this.player.y -3, r); // Centrer le cercle sur le joueur
+        }
+        
         if (!this.isGameStarted) {
             // Si le jeu n'a pas commencé, empêcher le mouvement du joueur
             return;
@@ -443,7 +470,7 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        if (this.timeRemaining <= 840 && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
+        if ((this.timeRemaining <= 450 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
             this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
             this.handleGamePause(); // Appeler la fonction de pause
         }
