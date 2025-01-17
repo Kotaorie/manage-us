@@ -3,20 +3,20 @@ import PhaserGame from './game/PhaserGame.vue'
 import { useRoute } from 'vue-router'
 import { onMounted, ref } from 'vue'
 import { io } from 'socket.io-client'
-import {HangmanMiniGame} from "@/game/minigames/HangmanMiniGame.js";
-import {OddOneOutMiniGame} from "@/game/minigames/OddOneOutMiniGame.js";
-import {MemoryGameMiniGame} from "@/game/minigames/MemoryGameMiniGame.js";
-import {SwitchPuzzleMiniGame} from "@/game/minigames/SwitchPuzzleMiniGame.js";
+import HangmanGame from "./game/minigames/HangmanGame.vue";
+import OddOneOutGame from './game/minigames/OddOneOutGame.vue';
+import MemoryGame from './game/minigames/MemoryGame.vue';
+import SwitchPuzzleMiniGame from "./game/minigames/SwitchPuzzleGame.vue";
 
 import {EventBus} from "@/game/EventBus.js";
-import { MathPuzzleMiniGame } from './game/minigames/MathPuzzleMiniGame ';
+import MathPuzzleGame from './game/minigames/MathPuzzleGame.vue';
  
 const route = useRoute();
 const token_room = route.params.token_room;
 const token_player = route.query.player
 const user = ref({})
 const missions = ref({})
-const minigames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame]
+const minigames = [OddOneOutGame, MemoryGame, HangmanGame, MathPuzzleGame, SwitchPuzzleMiniGame]
 let socket;
 async function loadDataUser() {
     const options = {

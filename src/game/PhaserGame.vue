@@ -3,6 +3,8 @@ import {onMounted, onUnmounted, ref, defineProps, computed} from 'vue';
 import {EventBus} from './EventBus';
 import StartGame from './main';
 import {io} from "socket.io-client";
+import OddOneOutMiniGame from './minigames/OddOneOutGame.vue';
+import MemoryGame from './minigames/MemoryGame.vue';
 
 // Save the current scene instance
 const scene = ref();
@@ -42,6 +44,7 @@ const remainingTime = ref(50)
 const isTimeEnd = ref(false)
 const isLaxativeEffectActive = ref(false)
 const timeLaxatif = ref(30)
+const miniGameComponents = ref(null)
 const isAlertBurnout = ref(false)
 
 onMounted(() => {
@@ -158,6 +161,17 @@ onMounted(() => {
 
     EventBus.on('laxative-effect-update', (data) => {
         timeLaxatif.value = data;
+    });
+
+    EventBus.on('launchMiniGame', (gameName) => {
+        console.log(gameName)
+        miniGameComponents.value = gameName
+    });
+
+    EventBus.on('game-complete', (data) => {
+        console.log(data.success)
+        miniGameComponents.value = null
+        EventBus.emit('end-game', data.success);
     })
 
 });
@@ -331,6 +345,16 @@ defineExpose({scene, game});
             class="gif"
         />
     </div>
+    <div id="phaser-game">
+        <div v-if="miniGameComponents" class="mini-game-popup">
+            <component
+                :is="miniGameComponents"
+                v-bind="miniGameProps"
+            ></component>
+        </div>
+    </div>
+
+
 </template>
 
 <style>
@@ -660,6 +684,43 @@ defineExpose({scene, game});
     height: auto;
     border-radius: 10px;
     border: 3px solid #ff5722;
+}
+
+.mini-game-popup {
+    position: fixed;
+    top: 50%; /* Centré verticalement */
+    left: 50%; /* Centré horizontalement */
+    transform: translate(-50%, -50%); /* Ajustement pour centrer précisément */
+    text-align: center; /* Centrer le texte à l'intérieur */
+    z-index: 1000; /* Au-dessus de tout */
+    background-color: rgba(0, 0, 0, 0.7); /* Fond semi-transparent */
+    padding: 20px; /* Espacement interne */
+    border-radius: 10px; /* Coins arrondis */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5); /* Ombre discrète */
+    color: white; /* Texte blanc */
+    width: 50vw; /* Largeur adaptative */
+    max-width: 600px; /* Limite maximale de largeur */
+    height: 50vh; /* Hauteur adaptative */
+    max-height: 400px; /* Limite maximale de hauteur */
+    overflow: hidden; /* Empêche le débordement */
+}
+
+.mini-game-popup .close-button {
+    position: absolute; /* Bouton en haut à droite */
+    top: 10px;
+    right: 10px;
+    background-color: #ff5252; /* Couleur rouge */
+    color: white; /* Texte blanc */
+    border: none;
+    border-radius: 5px; /* Coins arrondis */
+    padding: 5px 10px; /* Espacement interne */
+    cursor: pointer;
+    font-size: 1.2rem; /* Taille du texte */
+    transition: background-color 0.3s ease;
+}
+
+.mini-game-popup .close-button:hover {
+    background-color: #ff7961; /* Rouge plus clair au survol */
 }
 
 </style>
