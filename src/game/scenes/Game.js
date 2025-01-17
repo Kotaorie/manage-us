@@ -48,6 +48,7 @@ export class Game extends Scene
         this.load.image('computerOn', 'assets/Objects/Computer_1.png');
         this.load.image('computerOff', 'assets/Objects/Computer_2.png');
         this.load.image('bottle', 'assets/Objects/bottle.png');
+        this.load.image('generateur', 'assets/Objects/generateur.png');
         this.load.image('sink', 'assets/Objects/sink.png');
         this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
@@ -62,6 +63,7 @@ export class Game extends Scene
         this.load.image('papillon', 'assets/minigames/memory/papillon.png');
         this.load.image('basement', 'assets/tiles/Basement.png');
         this.load.image('city', 'assets/tiles/City.png');
+        this.load.image('city2', 'assets/tiles/City2.png');
         this.load.image('classroom', 'assets/tiles/Classroom.png');
         this.load.image('conference', 'assets/tiles/Conference.png');
         this.load.image('livingroom', 'assets/tiles/Livingroom.png');
@@ -119,6 +121,7 @@ export class Game extends Scene
         const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
         const builder =  map.addTilesetImage('room_builder', 'room_builder');
         const city =  map.addTilesetImage('city', 'city');
+        const city2 =  map.addTilesetImage('city2', 'city2');
         const basement =  map.addTilesetImage('basement', 'basement');
         const classroom =  map.addTilesetImage('classroom', 'classroom');
         const conference =  map.addTilesetImage('conference', 'conference');
@@ -131,9 +134,10 @@ export class Game extends Scene
         
         wallsLayer.setCollisionByProperty({ collides: true });
         map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
-        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement, city2]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
+        const generateurLayer = map.getObjectLayer('Generateur');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
         this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
@@ -367,6 +371,14 @@ export class Game extends Scene
                     const message = 'Appuyez sur E pour consommer la bouteille';
                     this.setInteraction(sprite, 'bottle', message);
                 }
+            });
+        });
+
+        generateurLayer.objects.forEach(obj => {
+            const sprite = this.add.sprite(obj.x, obj.y, 'generateur').setOrigin(0, 1).setInteractive();
+            this.physics.add.existing(sprite, true);
+            this.physics.add.overlap(this.player, sprite, () => {
+                this.setInteraction(sprite, 'generateur', 'Appuyez sur E pour activer le générateur');
             });
         });
 
