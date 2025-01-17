@@ -40,6 +40,7 @@ const isVired = ref(false)
 const roomName = ref('')
 const remainingTime = ref(50)
 const isTimeEnd = ref(false)
+const isLaxativeEffectActive = ref(false);
 
 onMounted(() => {
 
@@ -117,6 +118,23 @@ onMounted(() => {
         result.value = data
     })
 
+    EventBus.on('laxative-effect-start', (data) => {
+        console.log('Effet laxatif démarré : affichage du GIF');
+        isLaxativeEffectActive.value = data;
+    });
+
+    //bottles début
+    EventBus.on('laxative-added', ({ bottle }) => {
+        console.log(`Laxatif ajouté à la bouteille à la position : x=${bottle.x}, y=${bottle.y}`);
+    });
+
+    // Arrêter l'effet laxatif
+    EventBus.on('laxative-effect-end', (data) => {
+        console.log('Effet laxatif terminé : suppression du GIF');
+        isLaxativeEffectActive.value = data;
+    });
+    //bottles fin
+
 });
 
 const isVote = ref(false)
@@ -148,7 +166,7 @@ onUnmounted(() => {
 const isTrapped = ref(false);
 const trapCooldownRemaining = ref(20);
 const canPlaceTrap = ref(true);
-
+const timeLaxatif = ref(30)
 EventBus.on('trap-cooldown-update', (cooldown) => {
     trapCooldownRemaining.value = cooldown;
 });
@@ -160,6 +178,10 @@ EventBus.on('trap-ready', () => {
 EventBus.on('isTrapped', () => {
     isTrapped.value = true;
 });
+
+EventBus.on('laxative-effect-update', (data) => {
+    timeLaxatif.value = data;
+})
 
 function placeTrap() {
     canPlaceTrap.value = false;
@@ -267,6 +289,20 @@ defineExpose({scene, game});
                 src="https://www.photofunky.net/output/image/d/6/6/b/d66b36/photofunky.gif" 
                 alt="Piège activé" 
                 class="trap-gif" 
+            />
+        </div>
+    </section>
+
+    <section>
+        <div v-if="isLaxativeEffectActive" class="gif-container">
+            <p class="laxative-effect-text">
+                Vous avez été piégé par des laxatifs ! <br />
+                Temps restant : {{timeLaxatif}}s
+            </p>
+            <img 
+                src="https://media.tenor.com/1UPEsShuPpkAAAAM/thumbs-up-toilet.gif" 
+                alt="Laxative effect" 
+                class="gif" 
             />
         </div>
     </section>
@@ -627,18 +663,20 @@ defineExpose({scene, game});
 /*piège fin*/
 
 /*bottle début*/
-/* Ajoutez ce style pour le GIF dans le fichier CSS */
-.laxative-gif {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-    width: 300px;
+
+.gif-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ff5722;
+}
+
+.gif {
+    width: 300px; /* Ajustez la taille selon vos besoins */
     height: auto;
     border-radius: 10px;
     border: 3px solid #ff5722;
-    display: none; /* Caché par défaut */
 }
+
 /*bottle fin*/
 </style>

@@ -31,6 +31,7 @@ export class Game extends Scene
         this.trapCooldown = 20000; // Temps de recharge en ms (20 secondes)
         this.trapDuration = 20000; // Durée de l'effet du piège en ms
         //piège fin
+        this.infectedBottles = false;
     }
 
     preload ()
@@ -240,8 +241,26 @@ export class Game extends Scene
                     sprite.setTexture(newTexture);
                     this.interactionText.setText('');
                 } else if (type === 'bottle') {
-                    this.interactionText.setText('Laxatif ajouté');
-                } else if (type === 'computer') {
+                    if (this.user.is_impostor) {
+                        // Socket.emit(true)
+                        this.infectedBottles = true;
+                        EventBus.emit('laxative-added', { bottle: sprite }); // Notifie que la bouteille est infectée
+                        this.interactionText.setText('Laxatif ajouté avec succès.');
+                    } else {
+                        if (this.infectedBottles) {
+                            // socker.emit(false)
+                            this.handleLaxativeEffect(); // Applique l'effet au joueur
+                            this.infectedBottles = false; // Retire l'état infecté
+                            this.interactionText.setText('Vous avez été affecté par les laxatifs !');
+                            this.burnout = this.burnout / 2;
+                        } else {
+                            // Un innocent consomme une bouteille saine
+                            this.interactionText.setText('Vous avez bu de l’eau saine.');
+                            this.burnout = 0;
+                        }
+                        EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
+                    }
+                 } else if (type === 'computer') {
                     if (sprite.texture.key === 'computerOn') {
                         // Filtrer les missions non terminées
                         const availableMiniGames = this.miniGames.filter(
@@ -280,10 +299,16 @@ export class Game extends Scene
         bottleLayer.objects.forEach(obj => {
             const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive();
             this.physics.add.existing(sprite, true);
+        
             this.physics.add.overlap(this.player, sprite, () => {
-                this.setInteraction(sprite, 'bottle', 'Appuyez sur E pour ajouter le laxatif');
+                if (this.user.is_impostor) {
+                    this.setInteraction(sprite, 'bottle', 'Appuyez sur E pour infecter la bouteille');
+                } else {
+                    const message = 'Appuyez sur E pour consommer la bouteille';
+                    this.setInteraction(sprite, 'bottle', message);
+                }
             });
-        });
+        });           
 
         const randomIndex = Phaser.Math.Between(0, computerLayer.objects.length - 1);
 
@@ -507,11 +532,9 @@ export class Game extends Scene
         let velocityY = 0;
         let lastAnim = 'stop';
 
-        if (this.zoneLabels.text === 'Fun Room' && this.burnout > 0) {
-            this.burnout -= 0.3;
+         if (this.zoneLabels.text === 'Fun Room' && this.burnout > 0) {
+            this.burnout -= 0.02;
         }
-
-
 
         if (!this.isBlocked) {
             if (this.cursors.left.isDown) {
@@ -707,7 +730,7 @@ export class Game extends Scene
     //piège début
     placeTrap(x, y) {
         if (this.canPlaceTrap) {
-            const trap = this.add.rectangle(x, y, 32, 32);
+            const trap = this.add.rectangle(x, y, 32, 32, 0x000000);
             this.physics.add.existing(trap); // Active la physique sur cet objet
             trap.body.setAllowGravity(false); // Pas de gravité sur le piège
             trap.body.setImmovable(true); // Le piège ne bouge pas
@@ -746,6 +769,41 @@ export class Game extends Scene
             loop: true,
         });
     }
+
+    handleLaxativeEffect() {
+        const innocentPlayer = this.player;
+    
+        // Immobilise le joueur
+        innocentPlayer.setVelocity(0);
+        this.isBlocked = true;
+    
+        // Déclenche l'effet visuel
+        EventBus.emit('laxative-effect-start', true);
+    
+        // Téléportation après l'effet
+        const teleportPosition = { x: 250, y: 550 };
+        innocentPlayer.setPosition(teleportPosition.x, teleportPosition.y);
+
+        let remainingTime = 30;
+
+        const countdownTimer = this.time.addEvent({
+            delay: 1000, // 1 seconde
+            callback: () => {
+                remainingTime--;
+    
+                EventBus.emit('laxative-effect-update', remainingTime);
+
+                // Vérifie si le temps est écoulé
+                if (remainingTime <= 0) {
+                    countdownTimer.remove(false); // Arrête le timer
+                    EventBus.emit('laxative-effect-end', false); // Fin de l'effet
+                    this.isBlocked = false; // Libère le joueur
+                }
+            },
+            loop: true,
+        });
+    }
+    
            
     //piège fin    
 }
