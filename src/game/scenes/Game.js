@@ -434,7 +434,7 @@ export class Game extends Scene
         });
 
         // Compteur du début du jeu
-        this.countdownText = this.add.text(150, 150, this.countdown, {
+        this.countdownText = this.add.text(320, 320, this.countdown, {
             font: '32px Arial',
             fill: '#ffffff',
             stroke: '#000000',
