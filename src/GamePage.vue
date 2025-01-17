@@ -23,15 +23,16 @@ async function loadDataUser() {
         method: 'GET',
     }
 
-    fetch(`http://api.manag-us.online/api/player/info/${token_player}`, options)
+    fetch(`${import.meta.env.VITE_URL_API}/api/player/info/${token_player}`, options)
         .then(response => response.json())
         .then(response => {
-            socket = io('http://195.35.25.30:3001')
+            socket = io(import.meta.env.VITE_URL_WS)
 
+            console.log(response)
             socket.on('connect', () => {
                 console.log('Connected to WebSocket server with ID:', socket.id)
                 setTimeout(() => {
-                    socket.emit("startRoom", token_room)
+                    socket.emit("startRoom", {token_room: token_room, token_player: token_player, is_impostor: response.is_impostor})
                 }, 1000)
             });
             user.value = response

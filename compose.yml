@@ -1,0 +1,10 @@
+services:
+    game-manag-us:
+        build: .
+        container_name: manag-us-game
+        ports:
+            - "8080:8080"
+        environment:
+            VITE_URL_API: ${VITE_URL_API:-http://localhost}
+            VITE_URL_FRONT: ${VITE_URL_FRONT:-http://localhost:5000}
+            VITE_URL_WS: ${VITE_URL_WS:-http://localhost:3001}
