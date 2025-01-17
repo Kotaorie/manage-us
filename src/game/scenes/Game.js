@@ -436,7 +436,7 @@ export class Game extends Scene
         });
 
         generateurLayer.objects.forEach(obj => {
-            const sprite = this.add.sprite(obj.x, obj.y, 'generateur').setOrigin(0, 1).setInteractive();
+            const sprite = this.add.sprite(obj.x, obj.y, 'generateur').setOrigin(0, 1).setInteractive().setDepth(5);
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
                 this.setInteraction(sprite, 'generateur', 'Appuyez sur E pour court-circuiter');
