@@ -5,7 +5,6 @@ import {HangmanMiniGame} from '../minigames/HangmanMiniGame';
 import {EventBus} from "@/game/EventBus.js";
 import { SwitchPuzzleMiniGame } from '../minigames/SwitchPuzzleMiniGame';
 import { MathPuzzleMiniGame } from '../minigames/MathPuzzleMiniGame';
-
 export class Game extends Scene
 {
     constructor (user, socket, missions)
@@ -50,9 +49,9 @@ export class Game extends Scene
         this.load.image('computerOn', 'assets/Objects/Computer_1.png');
         this.load.image('computerOff', 'assets/Objects/Computer_2.png');
         this.load.image('bottle', 'assets/Objects/bottle.png');
-        this.load.image('sink', 'assets/tiles/generateur.png');
-        this.load.image('generateur', 'assets/Objects/sink.png');
-        this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.image('generateur', 'assets/tiles/generateur.png');
+        this.load.image('sink', 'assets/Objects/sink.png');
+        this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 64, frameHeight: 32 });
         this.load.spritesheet('water', 'assets/anims/animated_water.png', { frameWidth: 64, frameHeight: 64});
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
@@ -115,7 +114,7 @@ export class Game extends Scene
         const computer = this.add.image('computerOn').setInteractive();
         const bottle = this.add.image('bottle').setInteractive();
         const sink = this.add.image('sink').setInteractive();
-        const sink_water = this.add.sprite(100, 100, 'animated_sink').setInteractive();
+        // const sink_water = this.add.sprite(100, 100, 'animated_sink').setInteractive();
         const generateur = this.add.image('generateur').setInteractive();
         const roomZones = map.getObjectLayer('RoomZones');
         const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
@@ -187,13 +186,13 @@ export class Game extends Scene
         this.physics.add.existing(this.player);
 
 
-        this.playerNameText = this.add.text(this.player.x, this.player.y - 30, this.user.pseudo, {
-            font: '5px Arial',
+        this.playerNameText = this.add.text(this.player.x, this.player.y - 50, this.user.pseudo, {
+            font: '10px Arial',
             fill: '#ffffff',
             stroke: '#000000',
             strokeThickness: 2,
             resolution: 1
-        }).setOrigin(1, 0);
+        }).setOrigin(1, 0).setDepth(7);
 
         this.anims.create({
             key: 'left',
@@ -232,6 +231,13 @@ export class Game extends Scene
         this.anims.create({
             key: 'animated_water',
             frames: this.anims.generateFrameNumbers('water', { start: 0, end: 7 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'sink_animated',
+            frames: this.anims.generateFrameNumbers('animated_sink', { start: 0, end: 2 }),
             frameRate: 10,
             repeat: -1
         });
@@ -358,7 +364,10 @@ export class Game extends Scene
                 }   else if (type === 'sink') {
                     const newTexture = sprite.texture.key === 'animated_sink' ? 'sink' : 'animated_sink';
                     sprite.setTexture(newTexture);
+                    
                     if(sprite.texture.key === 'animated_sink'){
+                        sprite.play('sink_animated')
+                        sprite.y -= 2
                         for (let i = 0; i < this.inondation.length; i++) {
                             this.time.delayedCall(i * 500, () => {
                                 const nextInondation = this.inondation.filter(p => p.name === 'inondation_' + i);
@@ -373,6 +382,8 @@ export class Game extends Scene
                             }, null, this);
                         }
                     } else {
+                        sprite.anims.stop();
+                        sprite.y += 2
                         for (let i = 0; i < this.inondation.length; i++) {
                             this.time.delayedCall(i * 500, () => {
                                 const nextInondation = this.inondation.filter(p => p.name === 'inondation_' + i);
@@ -706,7 +717,7 @@ export class Game extends Scene
         }
 
         if (this.playerNameText) {
-            this.playerNameText.setPosition(this.player.x, this.player.y - 30);
+            this.playerNameText.setPosition(this.player.x, this.player.y - 50);
         }
 
         this.player.setVelocity(velocityX, velocityY);
