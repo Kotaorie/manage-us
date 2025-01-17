@@ -34,7 +34,15 @@ export class Game extends Scene
         this.load.image('bathroom', 'assets/tiles/bathroom.png');
         this.load.image('generic', 'assets/tiles/generic.png');
         this.load.image('jail', 'assets/tiles/jail.png');
+        this.load.image('basement', 'assets/tiles/Basement.png');
         this.load.image('kitchen', 'assets/tiles/kitchen.png');
+        this.load.image('city', 'assets/tiles/City.png');
+        this.load.image('classroom', 'assets/tiles/Classroom.png');
+        this.load.image('conference', 'assets/tiles/Conference.png');
+        this.load.image('livingroom', 'assets/tiles/Livingroom.png');
+        this.load.image('terrains', 'assets/tiles/Terrains.png');
+        this.load.image('vehicule', 'assets/tiles/Vehicule.png');
+
         this.load.image('interupteurOnTexture', 'assets/Objects/Interupteur_2.png');
         this.load.image('interupteurOffTexture', 'assets/Objects/Interupteur_1.png');
         this.load.image('computerOn', 'assets/Objects/Computer_1.png');
@@ -102,16 +110,23 @@ export class Game extends Scene
         const sink_water = this.add.sprite(100, 100, 'animated_sink').setInteractive();
         const roomZones = map.getObjectLayer('RoomZones');
         const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
+        const city =  map.addTilesetImage('city', 'city');
+        const basement =  map.addTilesetImage('basement', 'basement');
+        const classroom =  map.addTilesetImage('classroom', 'classroom');
+        const conference =  map.addTilesetImage('conference', 'conference');
+        const livingroom =  map.addTilesetImage('livingroom', 'livingroom');
+        const terrains =  map.addTilesetImage('terrains', 'terrains');
+        const vehicule =  map.addTilesetImage('vehicule', 'vehicule');
         const generic =  map.addTilesetImage('generic', 'generic');
         const jail =  map.addTilesetImage('jail', 'jail');
         const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
         const builder =  map.addTilesetImage('room_builder', 'room_builder');
-        map.createLayer('Grounds', builder);
-        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen]);
-        const wallsLayer = map.createLayer('Walls', builder);
+        map.createLayer('Grounds', [builder, terrains, vehicule, city, classroom, conference, livingroom]);
+        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen, builder, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        const wallsLayer = map.createLayer('Walls', [builder, terrains, vehicule, city, classroom, conference, livingroom, jail]);
         wallsLayer.setCollisionByProperty({ collides: true });
-        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
-        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
+        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
@@ -145,7 +160,7 @@ export class Game extends Scene
 
         // });
 
-        this.player = this.physics.add.sprite(160, 160, 'perso');
+        this.player = this.physics.add.sprite(320, 320, 'perso');
         this.player.body.setSize(this.player.width /4 , this.player.height / 4); // Adapte la taille à la moitié si besoin
         this.player.body.setOffset(7,15);
         this.player.setScale(1.5)
@@ -203,6 +218,12 @@ export class Game extends Scene
         this.physics.add.collider(this.player, platforms);
         this.cameras.main.startFollow(this.player);
 
+        this.minimap = this.cameras.add(this.cameras.main.centerX - 320, this.cameras.main.centerY + 50, 100, 100).setZoom(0.1).setName('mini');
+        this.minimap.setBackgroundColor(0x002244);
+        this.minimap.startFollow(this.player);
+        this.minimap.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+        this.minimap.ignore(this.darknessOverlay);
+
         this.zoneLabels = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 150, '', {
             fontSize: '15px',
             fill: '#ffffff',
@@ -217,6 +238,9 @@ export class Game extends Scene
         let isInteracting = false;
 
         roomZones.objects.forEach(zone => {
+
+            if(zone.properties.find(p => p.name === 'room_name')?.value === 'outside'){}
+            
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
                 .setOrigin(0)
                 .setVisible(false);
