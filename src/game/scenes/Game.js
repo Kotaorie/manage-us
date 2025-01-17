@@ -4,7 +4,7 @@ import {MemoryGameMiniGame} from '../minigames/MemoryGameMiniGame';
 import {HangmanMiniGame} from '../minigames/HangmanMiniGame';
 import {EventBus} from "@/game/EventBus.js";
 import { SwitchPuzzleMiniGame } from '../minigames/SwitchPuzzleMiniGame';
-import { MathPuzzleMiniGame } from '../minigames/MathPuzzleMiniGame ';
+import { MathPuzzleMiniGame } from '../minigames/MathPuzzleMiniGame';
 
 export class Game extends Scene
 {
@@ -136,7 +136,7 @@ export class Game extends Scene
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
-        this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
+        this.miniGames = [ OddOneOutMiniGame];
 
         //lumières
         this.darknessOverlay = this.add.graphics();
@@ -489,52 +489,61 @@ export class Game extends Scene
     }
 
     startMiniGame(scene, miniGameClass, computerSprite, indexMission) {
-        this.scene.launch('MiniGameLauncher', {
-            miniGameClass: miniGameClass,
-            onEnd: (success) => {
-                if (success) {
-                    this.completedMissions[miniGameClass.name] = true;
-                    EventBus.emit('missionCompleted', indexMission);
-                    this.socket.emit("successMission", {roomKey: this.state.roomKey, playerKey: this.user.token})
-                    
-                    const offComputers = this.computers.filter(computer => !computer.isOn)
-                    
-                    const onComputerIndex = this.computers.findIndex(computer => computer.isOn)
-                    this.computers[onComputerIndex].isOn = false
-
+        this.isBlocked = true;
+    
+        // Émet l'événement pour afficher le mini-jeu dans Vue.js
+        EventBus.emit('launchMiniGame', miniGameClass);
+    
+        // Écoute de la fin du jeu depuis Vue.js
+        EventBus.on('end-game', (success) => {
+            // Succès du mini-jeu
+            if (success) {
+                // Marquer la mission comme terminée
+                this.completedMissions[miniGameClass] = true;
+                EventBus.emit('missionCompleted', indexMission);
+                this.socket.emit("successMission", { roomKey: this.state.roomKey, playerKey: this.user.token });
+    
+                // Éteindre l'ordinateur actuel
+                computerSprite.setTexture('computerOff');
+                computerSprite.disableInteractive();
+    
+                // Trouver un autre ordinateur à allumer
+                const offComputers = this.computers.filter(computer => !computer.isOn);
+                if (offComputers.length > 0) {
                     const randomIndex = Math.floor(Math.random() * offComputers.length);
-                    const indexNewComputer = this.computers.findIndex(computer => computer === offComputers[randomIndex] )
-                    this.computers[indexNewComputer].sprite.setTexture('computerOn')
-                    this.physics.add.overlap(this.player, this.computers[indexNewComputer].sprite, () => {
-                        this.setInteraction(this.computers[indexNewComputer].sprite, 'computer', 'Appuyez sur E pour jouer au mini-jeu');
-                    });
-                    
-                    this.computers[indexNewComputer].isOn = true
-                    
-                    computerSprite.setTexture('computerOff');
-                    computerSprite.disableInteractive();
-                } else {
-                    const loseText = this.add.text(
-                        this.cameras.main.centerX,
-                        this.cameras.main.centerY,
-                        'Vous avez perdu ! Réessayez...',
-                        {
-                            fontSize: '24px',
-                            fill: '#ff0000',
-                            backgroundColor: '#000000',
-                            padding: { x: 10, y: 5 }
-                        }
-                    ).setOrigin(0.5).setScrollFactor(0);
-
-
-                    this.time.delayedCall(3000, () => {
-                        loseText.destroy();
-                        this.scene.resume();
+                    const newComputer = offComputers[randomIndex];
+    
+                    newComputer.sprite.setTexture('computerOn');
+                    newComputer.sprite.setInteractive();
+                    newComputer.isOn = true;
+    
+                    this.physics.add.overlap(this.player, newComputer.sprite, () => {
+                        this.setInteraction(newComputer.sprite, 'computer', 'Appuyez sur E pour jouer au mini-jeu');
                     });
                 }
+            } else {
+                // Échec du mini-jeu
+                const loseText = this.add.text(
+                    this.cameras.main.centerX,
+                    this.cameras.main.centerY,
+                    'Vous avez perdu ! Réessayez...',
+                    {
+                        fontSize: '24px',
+                        fill: '#ff0000',
+                        backgroundColor: '#000000',
+                        padding: { x: 10, y: 5 }
+                    }
+                ).setOrigin(0.5).setScrollFactor(0);
+    
+                this.time.delayedCall(3000, () => {
+                    loseText.destroy();
+                });
             }
+    
+            // Nettoyage après la fin du mini-jeu
+            this.isBlocked = false;
         });
-    }
+    }    
 
     update() {
         const circle = new Phaser.Geom.Circle(this.player.x, this.player.y, 75);
