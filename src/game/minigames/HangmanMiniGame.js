@@ -32,7 +32,7 @@ export class HangmanMiniGame {
         const { width, height } = this.scene.scale;
 
         // Ajouter le fond noir
-        this.scene.add.rectangle(width / 2, height / 2, width * 0.25, height * 0.30, 0x000000).setOrigin(0.5);
+        this.scene.add.rectangle(width / 2, height / 2, width * 0.25, height * 0.30).setOrigin(0.5);
 
         this.livesText = this.scene.add.text(width * 0.38, height * 0.40, `Jeu du pendu :`, {
             fontSize: Math.max(12, width * 0.008),
