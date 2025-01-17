@@ -25,6 +25,13 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
+
+        //piège début
+        this.canPlaceTrap = true; // Vérifie si un imposteur peut poser un piège
+        this.trapCooldown = 20000; // Temps de recharge en ms (20 secondes)
+        this.trapDuration = 20000; // Durée de l'effet du piège en ms
+        this.piegeIndex = null
+        //piège fin
     }
 
     preload ()
@@ -61,7 +68,6 @@ export class Game extends Scene
         this.otherPlayers = this.physics.add.group()
 
         scene.socket.on("setState", function (state) {
-            const { roomKey, players, numPlayers, gameScore, numVote } = state;
             scene.state = state
             console.log(scene.state)
         });
@@ -234,7 +240,26 @@ export class Game extends Scene
                     sprite.setTexture(newTexture);
                     this.interactionText.setText('');
                 } else if (type === 'bottle') {
-                    this.interactionText.setText('Laxatif ajouté');
+                    if (this.user.is_impostor) {
+                        if (!this.state.isLaxatif) {
+                            this.socket.emit('setWater', {roomKey: this.state.roomKey, value: true})
+                        }
+                        this.infectedBottles = true;
+                        EventBus.emit('laxative-added', { bottle: sprite }); // Notifie que la bouteille est infectée
+                        this.interactionText.setText('Laxatif ajouté avec succès.');
+                    } else {
+                        if (this.state.isLaxatif) {
+                            this.socket.emit('setWater', {roomKey: this.state.roomKey, value: false})
+                            this.handleLaxativeEffect(); // Applique l'effet au joueur
+                            this.interactionText.setText('Vous avez été affecté par les laxatifs !');
+                            this.burnout = this.burnout / 2;
+                        } else {
+                            // Un innocent consomme une bouteille saine
+                            this.interactionText.setText('Vous avez bu de l’eau saine.');
+                            this.burnout = 0;
+                        }
+                        EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
+                    }
                 } else if (type === 'computer') {
                     if (sprite.texture.key === 'computerOn') {
                         // Filtrer les missions non terminées
@@ -275,7 +300,16 @@ export class Game extends Scene
             const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive();
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
-                this.setInteraction(sprite, 'bottle', 'Appuyez sur E pour ajouter le laxatif');
+                if (this.user.is_impostor) {
+                    if (this.state.isLaxatif) {
+                        this.setInteraction(sprite, 'bottle', 'Bouteille déjà contaminée');
+                    } else {
+                        this.setInteraction(sprite, 'bottle', 'Appuyez sur E pour ajouter laxatif');
+                    }
+                } else {
+                    const message = 'Appuyez sur E pour consommer la bouteille';
+                    this.setInteraction(sprite, 'bottle', message);
+                }
             });
         });
 
@@ -383,6 +417,32 @@ export class Game extends Scene
         const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
         mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
         this.darknessOverlay.setMask(mask);
+
+        //piège début
+        this.traps = this.physics.add.group();
+        this.trapCooldownRemaining = 0;
+        EventBus.on('place-trap', () => {
+            // mettre event socket en emit
+            const data = {
+                roomKey: this.state.roomKey,
+                piege: {
+                    x: this.player.x,
+                    y: this.player.y
+                }
+            }
+            this.socket.emit('addPiege', (data))
+        });
+        
+        // socket .on => this.placeTrap
+        this.socket.on('refreshPiege', (state) => {
+            this.state = state
+            this.state.pieges.forEach((piege, index) => {
+                this.piegeIndex = index
+                this.placeTrap(piege);
+            });
+        });
+
+        //piège fin
     }
 
     startMiniGame(scene, miniGameClass, computerSprite, indexMission) {
@@ -468,10 +528,10 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        // if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
-        //     this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
-        //     this.handleGamePause(); // Appeler la fonction de pause
-        // }
+        if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
+            this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
+            this.handleGamePause(); // Appeler la fonction de pause
+        }
         
         if (this.timeRemaining <= 0) {
             this.timeRemaining = 0;  // On fixe le timer à 0 quand il est écoulé
@@ -491,11 +551,9 @@ export class Game extends Scene
         let lastAnim = 'stop';
 
         if (this.zoneLabels.text === 'Fun Room' && this.burnout > 0) {
-            this.burnout -= 0.3;
+            this.burnout -= 0.01;
         }
-
-
-
+        
         if (!this.isBlocked) {
             if (this.cursors.left.isDown) {
                 velocityX = -80;
@@ -590,6 +648,55 @@ export class Game extends Scene
             y: this.player.y,
             rotation: this.player.rotation,
         };
+        
+        //piège début
+        this.physics.add.overlap(this.player, this.traps, (player, trap) => {
+            if (!trap.active) return;
+            if (this.user.is_impostor) {
+                return;
+            }
+            EventBus.emit('isTrapped', true);
+            this.socket.emit('usePiege', {roomKey: this.state.roomKey, index: this.piegeIndex})
+            // Désactive le piège pour éviter les collisions répétées
+            trap.destroy();
+
+            // Immobilise le joueur
+            player.setVelocity(0);
+            this.isBlocked = true;
+
+            // Affiche un message temporaire d'immobilisation
+            const immobilizedText = this.add.text(
+                this.cameras.main.centerX,
+                this.cameras.main.centerY,
+                'Vous êtes pris dans un piège !',
+                {
+                    fontSize: '24px',
+                    fill: '#ff0000',
+                    backgroundColor: '#000000',
+                    padding: { x: 10, y: 5 },
+                }
+            ).setOrigin(0.5);
+            this.piegeIndex = null
+            this.startTrapCooldown()
+
+            // Délai pour libérer le joueur après la durée du piège
+            let remainingTime = this.trapDuration / 1000; // Convertir en secondes
+            const timer = this.time.addEvent({
+                delay: 1000,
+                callback: () => {
+                    remainingTime--;
+                    immobilizedText.setText(`Vous êtes pris dans un piège !\nTemps restant : ${remainingTime}s`);
+
+                    if (remainingTime <= 0) {
+                        timer.remove(false);
+                        immobilizedText.destroy();
+                        this.isBlocked = false; // Libère le joueur
+                    }
+                },
+                loop: true,
+            });
+        });
+        //piège fin     
     }
 
     addPlayer(scene, playerInfo) {
@@ -637,5 +744,104 @@ export class Game extends Scene
             EventBus.emit('pauseGame', {status: false})
             this.scene.resume()
         }, 60000);
+    }
+
+    //piège début
+    placeTrap(piege) {
+        if (piege.isUse) {
+            return
+        }
+        if (this.user.is_impostor) {
+            this.startCoolDownImpostor()
+            return
+        }
+        if (this.canPlaceTrap) {
+            const trap = this.add.rectangle(piege.x, piege.y, 32, 32, 0x000000);
+            this.physics.add.existing(trap); // Active la physique sur cet objet
+            trap.body.setAllowGravity(false); // Pas de gravité sur le piège
+            trap.body.setImmovable(true); // Le piège ne bouge pas
+            trap.active = true; // Marque le piège comme actif
+            this.traps.add(trap);
+
+            EventBus.emit('trap-placed', { x: trap.x, y: trap.y });
+
+            this.canPlaceTrap = false;
+            this.trapCooldownRemaining = this.trapCooldown / 1000; // Initialisez le cooldown en secondes
+        }
+    }
+    
+    startCoolDownImpostor () {
+        console.log('toto imposteur')
+        let trapCooldownTimer
+        let trapCooldownRemaining = 20
+        trapCooldownTimer = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                if (trapCooldownRemaining > 0) {
+                    trapCooldownRemaining--;
+                    EventBus.emit('trap-cooldown-update', trapCooldownRemaining);
+
+                    if (trapCooldownRemaining <= 0) {
+                        EventBus.emit('trap-ready');
+                    }
+                }
+            },
+            loop: true,
+        });
+    }
+    startTrapCooldown() {
+        console.log('toto player')
+        if (this.trapCooldownTimer) {
+            this.trapCooldownTimer.remove(false); // Évitez les doublons
+        }
+        this.trapCooldownRemaining = this.trapDuration / 1000
+        this.trapCooldownTimer = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                if (this.trapCooldownRemaining > 0) {
+                    this.trapCooldownRemaining--;
+                    EventBus.emit('trap-cooldown-update', this.trapCooldownRemaining);
+
+                    if (this.trapCooldownRemaining <= 0) {
+                        this.canPlaceTrap = true;
+                        EventBus.emit('isTrapped', false);
+                        this.trapCooldownTimer.remove(false);
+                        this.trapCooldownTimer = null; // Nettoie la référence
+                    }
+                }
+            },
+            loop: true,
+        });
+    }
+
+    handleLaxativeEffect() {
+        const innocentPlayer = this.player;
+
+        // Immobilise le joueur
+        innocentPlayer.setVelocity(0);
+        this.isBlocked = true;
+
+        // Déclenche l'effet visuel
+        EventBus.emit('laxative-effect-start', true);
+
+        // Téléportation après l'effet
+        const teleportPosition = { x: 250, y: 550 };
+        innocentPlayer.setPosition(teleportPosition.x, teleportPosition.y);
+        let remainingTime = 30;
+        const countdownTimer = this.time.addEvent({
+            delay: 1000, // 1 seconde
+            callback: () => {
+                remainingTime--;
+
+                EventBus.emit('laxative-effect-update', remainingTime);
+                // Vérifie si le temps est écoulé
+                if (remainingTime <= 0) {
+                    countdownTimer.remove(false); // Arrête le timer
+                    EventBus.emit('laxative-effect-end', false); // Fin de l'effet
+                    this.isBlocked = false; // Libère le joueur
+                }
+            },
+            loop: true,
+        });
     }
 }

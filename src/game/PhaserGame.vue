@@ -1,5 +1,5 @@
 <script setup>
-import {onMounted, onUnmounted, ref, defineProps} from 'vue';
+import {onMounted, onUnmounted, ref, defineProps, computed} from 'vue';
 import {EventBus} from './EventBus';
 import StartGame from './main';
 import {io} from "socket.io-client";
@@ -40,6 +40,8 @@ const isVired = ref(false)
 const roomName = ref('')
 const remainingTime = ref(50)
 const isTimeEnd = ref(false)
+const isLaxativeEffectActive = ref(false)
+const timeLaxatif = ref(30)
 
 onMounted(() => {
 
@@ -54,11 +56,23 @@ onMounted(() => {
     });
     
     props.socket.on('finishGame', (state) => {
-        fetch(`http://api.manag-us.online/api/game/finish/${state.roomKey}`).then(res => {
-            if (res.success) {
-                window.location.href = 'http://manag-us.online'
-            }
-        })
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(state)
+        };
+
+        // Faire l'appel API
+        fetch(`${import.meta.env.VITE_URL_API}/api/game/finish/${state.roomKey}`, options)
+            .then((res) => res.json())
+            .then((data) => {
+                window.location.href = `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.playerId}`;
+            })
+            .catch((error) => {
+                console.error('Erreur lors de l\'appel API:', error);
+            });
     })
 
     EventBus.on('pauseGame', (value) => {
@@ -76,13 +90,25 @@ onMounted(() => {
     
     EventBus.on('time-end', (state) => {
         isTimeEnd.value = true
-        fetch(`http://api.manag-us.online/api/game/finish/${state.roomKey}`).then(res => {
-            if (res.success) {
+        const options = {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json' // Définir le type de contenu comme JSON
+            },
+            body: JSON.stringify(state) // Convertir l'objet state en JSON
+        };
+
+        // Faire l'appel API
+        fetch(`${import.meta.env.VITE_URL_API}/api/game/finish/${state.roomKey}`, options)
+            .then((res) => res.json()) // Traiter la réponse en tant que JSON (selon l'API)
+            .then((data) => {
                 setTimeout(() => {
-                    window.location.href = 'http://manag-us.online'
-                }, 3000)
-            }
-        })
+                    window.location.href =  `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.playerId}`; // Redirection après 3 secondes
+                }, 3000);
+            })
+            .catch((error) => {
+                console.error('Erreur lors de l\'appel API:', error); // Gestion des erreurs
+            });
     })
 
     EventBus.on('time', (data) => {
@@ -117,6 +143,18 @@ onMounted(() => {
         result.value = data
     })
 
+    EventBus.on('laxative-effect-start', (data) => {
+        isLaxativeEffectActive.value = data;
+    });
+
+    EventBus.on('laxative-effect-end', (data) => {
+        isLaxativeEffectActive.value = data;
+    });
+
+    EventBus.on('laxative-effect-update', (data) => {
+        timeLaxatif.value = data;
+    })
+
 });
 
 const isVote = ref(false)
@@ -144,6 +182,37 @@ onUnmounted(() => {
     }
 
 });
+
+const filteredPlayer = computed(() => {
+    const playersArray = Object.values(stateRoom.value.players); // Convertit l'objet en tableau
+    return playersArray.filter((player) => {
+        return !stateRoom.value.userEliminated.includes(player.playerId) &&
+            !stateRoom.value.userBurnOut.includes(player.playerId);
+    });
+});
+
+//piège début
+const isTrapped = ref(false);
+const trapCooldownRemaining = ref(20);
+const canPlaceTrap = ref(true);
+EventBus.on('trap-cooldown-update', (cooldown) => {
+    trapCooldownRemaining.value = cooldown;
+});
+EventBus.on('trap-ready', () => {
+    canPlaceTrap.value = true;
+});
+
+EventBus.on('isTrapped', (data) => {
+    isTrapped.value = data;
+});
+function placeTrap() {
+    canPlaceTrap.value = false;
+    setTimeout(() => {
+        isTrapped.value = false;
+    }, 20000);
+    EventBus.emit('place-trap');
+}
+//piège fin
 
 defineExpose({scene, game});
 </script>
@@ -183,7 +252,7 @@ defineExpose({scene, game});
             <h1>Un stagiaire sabote l'équipe !</h1>
             <h2>C’est l’heure du jugement : qui est le stagiaire à renvoyer ?</h2>
             <div v-if="!isResultVote" class="avatars">
-                <div v-if="!isVote" v-for="(player, index) in stateRoom.players" :key="index" @click="vote(index)"
+                <div v-if="!isVote" v-for="(player, index) in filteredPlayer" :key="index" @click="vote(player.playerId)"
                      class="avatar">
                     <p>{{ player.pseudo }}</p>
                 </div>
@@ -224,7 +293,47 @@ defineExpose({scene, game});
         <p>Malheureusement, le projet n'a pas pu être terminé à temps...</p>
         <p>Réunion post-mortem prévue à la machine à café ☕.</p>
     </div>
-
+    <div class="trap-container" v-if="props.user.is_impostor">
+        <button
+            :disabled="!canPlaceTrap"
+            @click="placeTrap"
+            class="trap-button"
+        >
+            Poser un piège
+        </button>
+        <p v-if="!canPlaceTrap">
+            Recharge du piège : {{ trapCooldownRemaining }}s
+        </p>
+        <div class="trap-cooldown-bar">
+            <div
+                class="trap-cooldown-fill"
+                :style="{ width: `${(trapCooldownRemaining / 20) * 100}%` }"
+            ></div>
+        </div>
+    </div>
+    <div v-if="isTrapped" class="gif-container">
+        <p class="gif-text">
+            Vous êtes pris dans un piège !
+            <br />
+            Temps restant : {{ trapCooldownRemaining }}s
+        </p>
+        <img
+            src="https://www.photofunky.net/output/image/d/6/6/b/d66b36/photofunky.gif"
+            alt="Piège activé"
+            class="trap-gif"
+        />
+    </div>
+    <div v-if="isLaxativeEffectActive" class="gif-container">
+        <p class="laxative-effect-text">
+            Vous avez été piégé par des laxatifs ! <br />
+            Temps restant : {{timeLaxatif}}s
+        </p>
+        <img
+            src="https://media.tenor.com/1UPEsShuPpkAAAAM/thumbs-up-toilet.gif"
+            alt="Laxative effect"
+            class="gif"
+        />
+    </div>
 </template>
 
 <style>
@@ -490,6 +599,70 @@ defineExpose({scene, game});
     margin-bottom: 15px; /* Espacement entre les paragraphes */
     line-height: 1.6; /* Espacement des lignes pour plus de lisibilité */
     color: #ffcccb; /* Rouge clair pour adoucir les phrases secondaires */
+}
+
+.trap-container {
+    position: fixed;
+    bottom : 20px;
+    right: 20px;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border-radius: 8px;
+    color: white;
+    text-align: center;
+}
+.trap-button {
+    background-color: #ff5722;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+.trap-button:disabled {
+    background-color: #777;
+    cursor: not-allowed;
+}
+.trap-cooldown-bar {
+    width: 100%;
+    height: 10px;
+    background-color: #e0e0e0;
+    border-radius: 5px;
+    margin-top: 5px;
+    position: relative;
+}
+.trap-cooldown-fill {
+    height: 100%;
+    background-color: #ff5722;
+    width: 0%; /* Ajusté dynamiquement */
+    transition: width 1s linear;
+    border-radius: 5px;
+}
+.gif-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.7); /* Fond semi-transparent */
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    color: white;
+}
+.gif-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ff5722;
+}
+.trap-gif {
+    width: 300px; /* Ajustez la taille selon vos besoins */
+    height: auto;
+    border-radius: 10px;
+    border: 3px solid #ff5722;
 }
 
 </style>
