@@ -157,8 +157,11 @@ EventBus.on('trap-ready', () => {
     canPlaceTrap.value = true;
 });
 
-function placeTrap() {
+EventBus.on('isTrapped', () => {
     isTrapped.value = true;
+});
+
+function placeTrap() {
     canPlaceTrap.value = false;
     setTimeout(() => {
         isTrapped.value = false;
@@ -623,4 +626,19 @@ defineExpose({scene, game});
 
 /*piège fin*/
 
+/*bottle début*/
+/* Ajoutez ce style pour le GIF dans le fichier CSS */
+.laxative-gif {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    width: 300px;
+    height: auto;
+    border-radius: 10px;
+    border: 3px solid #ff5722;
+    display: none; /* Caché par défaut */
+}
+/*bottle fin*/
 </style>

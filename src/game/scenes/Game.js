@@ -611,18 +611,19 @@ export class Game extends Scene
         //piège début
         this.physics.add.overlap(this.player, this.traps, (player, trap) => {
             if (!trap.active) return;
-
+            
             if (this.user.is_impostor) {
                 return;
             }
         
+            EventBus.emit('isTrapped');
+
             // Désactive le piège pour éviter les collisions répétées
             trap.destroy();
         
             // Immobilise le joueur
             player.setVelocity(0);
             this.isBlocked = true;
-        
             // Affiche un message temporaire d'immobilisation
             const immobilizedText = this.add.text(
                 this.cameras.main.centerX,
