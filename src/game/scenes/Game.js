@@ -50,7 +50,8 @@ export class Game extends Scene
         this.load.image('computerOn', 'assets/Objects/Computer_1.png');
         this.load.image('computerOff', 'assets/Objects/Computer_2.png');
         this.load.image('bottle', 'assets/Objects/bottle.png');
-        this.load.image('sink', 'assets/Objects/sink.png');
+        this.load.image('sink', 'assets/tiles/generateur.png');
+        this.load.image('generateur', 'assets/Objects/sink.png');
         this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
         this.load.spritesheet('water', 'assets/anims/animated_water.png', { frameWidth: 64, frameHeight: 64});
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
@@ -115,6 +116,7 @@ export class Game extends Scene
         const bottle = this.add.image('bottle').setInteractive();
         const sink = this.add.image('sink').setInteractive();
         const sink_water = this.add.sprite(100, 100, 'animated_sink').setInteractive();
+        const generateur = this.add.image('generateur').setInteractive();
         const roomZones = map.getObjectLayer('RoomZones');
         const bathroom =  map.addTilesetImage('bathroom', 'bathroom');
         const generic =  map.addTilesetImage('generic', 'generic');
