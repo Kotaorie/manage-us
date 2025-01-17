@@ -42,6 +42,7 @@ const remainingTime = ref(50)
 const isTimeEnd = ref(false)
 const isLaxativeEffectActive = ref(false)
 const timeLaxatif = ref(30)
+const isAlertBurnout = ref(false)
 
 onMounted(() => {
 
@@ -68,7 +69,7 @@ onMounted(() => {
         fetch(`${import.meta.env.VITE_URL_API}/api/game/finish/${state.roomKey}`, options)
             .then((res) => res.json())
             .then((data) => {
-                window.location.href = `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.playerId}`;
+                window.location.href = `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.token}`;
             })
             .catch((error) => {
                 console.error('Erreur lors de l\'appel API:', error);
@@ -103,7 +104,7 @@ onMounted(() => {
             .then((res) => res.json()) // Traiter la réponse en tant que JSON (selon l'API)
             .then((data) => {
                 setTimeout(() => {
-                    window.location.href =  `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.playerId}`; // Redirection après 3 secondes
+                    window.location.href =  `${import.meta.env.VITE_URL_FRONT}/result/${state.roomKey}/${props.user.token}`; // Redirection après 3 secondes
                 }, 3000);
             })
             .catch((error) => {
@@ -115,6 +116,10 @@ onMounted(() => {
         const {minutes, seconds} = data
         minute.value = minutes
         second.value = seconds
+    });
+
+    EventBus.on('alert-burn-out', (data) => {
+        isAlertBurnout.value = data
     });
 
     EventBus.on('room', (data) => {
@@ -273,7 +278,7 @@ defineExpose({scene, game});
         <div class="burnout-bar">
             <div class="burnout-fill" :style="{ width: burnOut + '%' }"></div>
         </div>
-        <p class="burnout-text">Burnout: {{ Math.round(burnOut) }}%</p>
+        <p class="burnout-text">Burnout: {{ Math.round(burnOut) }}% <span v-if="isAlertBurnout" style="color: red">Burnout proche attention</span></p>
     </div>
     <div v-if="isBurnOut" class="gif-container">
         <p class="gif-text">Vous avez succombé au burnout... RIP votre motivation 😵</p>
