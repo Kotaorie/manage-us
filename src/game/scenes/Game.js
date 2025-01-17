@@ -32,6 +32,8 @@ export class Game extends Scene
         this.trapDuration = 20000; // Durée de l'effet du piège en ms
         this.piegeIndex = null
         //piège fin
+
+        this.hideRoom = []
     }
 
     preload ()
@@ -58,6 +60,13 @@ export class Game extends Scene
         this.load.image('star', 'assets/minigames/memory/star.png');
         this.load.image('bomb', 'assets/minigames/memory/bomb.png');
         this.load.image('papillon', 'assets/minigames/memory/papillon.png');
+        this.load.image('basement', 'assets/tiles/Basement.png');
+        this.load.image('city', 'assets/tiles/City.png');
+        this.load.image('classroom', 'assets/tiles/Classroom.png');
+        this.load.image('conference', 'assets/tiles/Conference.png');
+        this.load.image('livingroom', 'assets/tiles/Livingroom.png');
+        this.load.image('terrains', 'assets/tiles/Terrains.png');
+        this.load.image('vehicule', 'assets/tiles/Vehicule.png');
     }
 
     create ()
@@ -109,18 +118,33 @@ export class Game extends Scene
         const jail =  map.addTilesetImage('jail', 'jail');
         const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
         const builder =  map.addTilesetImage('room_builder', 'room_builder');
-        map.createLayer('Grounds', builder);
-        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen]);
-        const wallsLayer = map.createLayer('Walls', builder);
+        const city =  map.addTilesetImage('city', 'city');
+        const basement =  map.addTilesetImage('basement', 'basement');
+        const classroom =  map.addTilesetImage('classroom', 'classroom');
+        const conference =  map.addTilesetImage('conference', 'conference');
+        const livingroom =  map.addTilesetImage('livingroom', 'livingroom');
+        const terrains =  map.addTilesetImage('terrains', 'terrains');
+        const vehicule =  map.addTilesetImage('vehicule', 'vehicule');
+        map.createLayer('Grounds', [builder, terrains, vehicule, city, classroom, conference, livingroom]);
+        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen, builder, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        const wallsLayer = map.createLayer('Walls', [builder, terrains, vehicule, city, classroom, conference, livingroom, jail]);
+        
         wallsLayer.setCollisionByProperty({ collides: true });
-        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen]);
-        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen]);
+        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
         this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
 
+        //lumières
+        this.darknessOverlay = this.add.graphics();
+        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
+        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
+
+        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
+        
         this.interactionText = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY , '', {
             fontSize: '15px',
             fill: '#ffffff',
@@ -141,7 +165,7 @@ export class Game extends Scene
 
         // });
 
-        this.player = this.physics.add.sprite(160, 160, 'perso');
+        this.player = this.physics.add.sprite(320, 320, 'perso');
         this.player.body.setSize(this.player.width /4 , this.player.height / 4); // Adapte la taille à la moitié si besoin
         this.player.body.setOffset(7,15);
         this.player.setScale(1.5)
@@ -199,6 +223,12 @@ export class Game extends Scene
         this.physics.add.collider(this.player, platforms);
         this.cameras.main.startFollow(this.player);
 
+        this.minimap = this.cameras.add(this.cameras.main.centerX - 320, this.cameras.main.centerY + 50, 100, 100).setZoom(0.1).setName('mini');
+        this.minimap.setBackgroundColor(0x002244);
+        this.minimap.startFollow(this.player);
+        this.minimap.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+        this.minimap.ignore(this.darknessOverlay)
+
         this.zoneLabels = this.add.text(this.cameras.main.centerX, this.cameras.main.centerY - 150, '', {
             fontSize: '15px',
             fill: '#ffffff',
@@ -213,16 +243,38 @@ export class Game extends Scene
         let isInteracting = false;
 
         roomZones.objects.forEach(zone => {
+
+            if(zone.properties.find(p => p.name === 'room_name')?.value === 'outside'){}
+            
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
                 .setOrigin(0)
                 .setVisible(false);
             
             this.physics.add.existing(zoneArea, true);
             this.physics.add.overlap(this.player, zoneArea, () => {
+                this.lightMask.clear()
                 isInZone = true;
                 const roomName = zone.properties.find(p => p.name === 'room_name')?.value || 'Zone inconnue';
                 this.zoneLabels.setText(roomName)
                 EventBus.emit('room', roomName)
+
+                if(this.hideRoom.includes(roomName)){
+                    return
+                }
+
+                const roomWidth = zone.width;
+                const roomHeight = zone.height;
+                const roomCenterX = zone.x + roomWidth / 2;
+                const roomCenterY = zone.y + roomHeight / 2;
+                const mask2 = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
+                mask2.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
+                this.darknessOverlay.setMask(mask2);
+
+                // Dessiner un rectangle avec un dégradé pour simuler la lumière
+                for (let alpha = 1; alpha > 0; alpha -= 0.1) {
+                    this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
+                    this.lightMask.fillRect(roomCenterX - roomWidth / 2, roomCenterY - roomHeight / 2, roomWidth, roomHeight); // Centrer le rectangle sur la pièce
+                }
             });
         });
 
@@ -233,12 +285,17 @@ export class Game extends Scene
 
         this.input.keyboard.on('keydown-E', () => {
             if (currentInteractable) {
-                const { sprite, type } = currentInteractable;
+                var { sprite, type, room } = currentInteractable;
 
                 if (type === 'interupteur') {
                     const newTexture = sprite.texture.key === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
                     sprite.setTexture(newTexture);
                     this.interactionText.setText('');
+                    if(sprite.texture.key === 'interupteurOnTexture'){
+                        this.hideRoom.push(room)
+                    }else {
+                        this.hideRoom = this.hideRoom.filter(roomName => roomName !== room)
+                    }
                 } else if (type === 'bottle') {
                     if (this.user.is_impostor) {
                         if (!this.state.isLaxatif) {
@@ -270,7 +327,6 @@ export class Game extends Scene
                         let filteredMissions = this.missions
                             .map((item, index) => ({ item, index }))
                             .filter(({ item }) => item.isTour)
-                        console.log(filteredMissions)
                         if (filteredMissions.length === 0) {
                             this.interactionText.setText('Toutes les missions ont été terminées !');
                             return;
@@ -287,12 +343,13 @@ export class Game extends Scene
 
         // Définir les couches interactives
         interupteurLayer.objects.forEach(obj => {
-            const isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            var isOn = obj.properties.find(p => p.name === 'check')?.value || false;
+            const room = obj.properties.find(p => p.name === 'room')?.value || 'Zone inconnue';
             const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
-                this.setInteraction(sprite, 'interupteur', 'Appuyez sur E pour interagir');
+                this.setInteraction(sprite, 'interupteur', 'Press E', room);
             });
         });
 
@@ -335,8 +392,8 @@ export class Game extends Scene
 
 
         // Fonction utilitaire pour définir une interaction
-        this.setInteraction = (sprite, type, text) => {
-            currentInteractable = { sprite, type };
+        this.setInteraction = (sprite, type, text, room) => {
+            currentInteractable = { sprite, type, room };
             this.interactionText.setText(text);
         };
 
@@ -402,22 +459,8 @@ export class Game extends Scene
                 this.countdownText.setAlpha(0);
             });
         });
-
-        //lumières
-
-        // Calque noir global couvrant toute la carte
-        this.darknessOverlay = this.add.graphics();
-        this.darknessOverlay.fillStyle(0x000000, 1); // Noir opaque
-        this.darknessOverlay.fillRect(0, 0, map.widthInPixels, map.heightInPixels);
-
-        // Masque dynamique pour le cercle de lumière autour du joueur
-        this.lightMask = this.make.graphics(); // Masque pour découper la lumière
-
-        // Appliquer le masque normal (pas inversé)
-        const mask = new Phaser.Display.Masks.GeometryMask(this, this.lightMask);
-        mask.setInvertAlpha(true); // Inversion du masque pour cacher tout sauf le cercle de lumière
-        this.darknessOverlay.setMask(mask);
-
+        
+        
         //piège début
         this.traps = this.physics.add.group();
         this.trapCooldownRemaining = 0;
@@ -450,7 +493,6 @@ export class Game extends Scene
             miniGameClass: miniGameClass,
             onEnd: (success) => {
                 if (success) {
-                    console.log('Mini-jeu réussi !');
                     this.completedMissions[miniGameClass.name] = true;
                     EventBus.emit('missionCompleted', indexMission);
                     this.socket.emit("successMission", {roomKey: this.state.roomKey, playerKey: this.user.token})
@@ -489,25 +531,18 @@ export class Game extends Scene
                         loseText.destroy();
                         this.scene.resume();
                     });
-
-                    console.log('Mini-jeu échoué.');
                 }
             }
         });
     }
 
     update() {
-        this.lightMask.clear();
+        const circle = new Phaser.Geom.Circle(this.player.x, this.player.y, 75);
+        this.lightMask.fillCircleShape(circle);
 
         // Rayon du cercle de lumière
-        const gradientRadius = 75;
-
-        // Dessiner un cercle avec un dégradé pour simuler la lumière
-        for (let r = gradientRadius; r > 0; r -= 10) {
-            const alpha = r / gradientRadius; // Alpha décroissant
-            this.lightMask.fillStyle(0xffffff, alpha); // Blanc avec transparence
-            this.lightMask.fillCircle(this.player.x - 13, this.player.y -3, r); // Centrer le cercle sur le joueur
-        }
+        this.darknessOverlay.setDepth(10);
+        this.lightMask.setDepth(10);
         
         if (!this.isGameStarted) {
             // Si le jeu n'a pas commencé, empêcher le mouvement du joueur
@@ -528,7 +563,7 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        if ((this.timeRemaining <= 590 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
+        if ((this.timeRemaining <= 450 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
             this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
             this.handleGamePause(); // Appeler la fonction de pause
         }
