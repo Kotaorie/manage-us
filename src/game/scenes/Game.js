@@ -67,6 +67,8 @@ export class Game extends Scene
         this.load.image('livingroom', 'assets/tiles/Livingroom.png');
         this.load.image('terrains', 'assets/tiles/Terrains.png');
         this.load.image('vehicule', 'assets/tiles/Vehicule.png');
+        this.load.image('generateur', 'assets/Objects/generateur.png');
+        this.load.image('city2', 'assets/tiles/City2.png');
     }
 
     create ()
@@ -79,6 +81,26 @@ export class Game extends Scene
         scene.socket.on("setState", function (state) {
             scene.state = state
             console.log(scene.state)
+            
+            scene.state.roomLight.forEach((room) => {
+                if (room.value) {
+                    scene.hideRoom.push(room.name)
+                } else {
+                    scene.hideRoom = scene.hideRoom.filter(roomName => roomName !== room.name)
+                }
+            })
+            console.log(scene.state)
+            if (!scene.state.isGenerator) {
+                scene.computers.forEach((computer) => {
+                    if (!computer.isOn) {
+                        computer.sprite.setTexture('computerOff')
+                    }
+                })
+            } else {
+                scene.computers.forEach((computer) => {
+                    computer.sprite.setTexture('computerOn')
+                })
+            }
         });
 
         this.socket.on("currentPlayers", function (arg) {
@@ -119,6 +141,7 @@ export class Game extends Scene
         const kitchen =  map.addTilesetImage('kitchen', 'kitchen');
         const builder =  map.addTilesetImage('room_builder', 'room_builder');
         const city =  map.addTilesetImage('city', 'city');
+        const city2 =  map.addTilesetImage('city2', 'city2');
         const basement =  map.addTilesetImage('basement', 'basement');
         const classroom =  map.addTilesetImage('classroom', 'classroom');
         const conference =  map.addTilesetImage('conference', 'conference');
@@ -131,11 +154,12 @@ export class Game extends Scene
         
         wallsLayer.setCollisionByProperty({ collides: true });
         map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
-        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
+        map.createLayer('ObjetVisible', [city2, bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
+        const generateurLayer = map.getObjectLayer('Generateur');
         this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
 
         //lumières
@@ -243,7 +267,7 @@ export class Game extends Scene
         let isInteracting = false;
 
         roomZones.objects.forEach(zone => {
-
+            console.log(zone.properties)
             if(zone.properties.find(p => p.name === 'room_name')?.value === 'outside'){}
             
             const zoneArea = this.add.rectangle(zone.x, zone.y, zone.width, zone.height)
@@ -290,12 +314,16 @@ export class Game extends Scene
                 if (type === 'interupteur') {
                     const newTexture = sprite.texture.key === 'interupteurOnTexture' ? 'interupteurOffTexture' : 'interupteurOnTexture';
                     sprite.setTexture(newTexture);
+                    
                     this.interactionText.setText('');
                     if(sprite.texture.key === 'interupteurOnTexture'){
                         this.hideRoom.push(room)
                     }else {
                         this.hideRoom = this.hideRoom.filter(roomName => roomName !== room)
                     }
+                    this.socket.emit('changeLight', {roomKey: this.state.roomKey, room: room})
+                } else if (type === 'generateur') {
+                    this.socket.emit('changeGenerator', {roomKey: this.state.roomKey, value: !this.state.isGenerator})
                 } else if (type === 'bottle') {
                     if (this.user.is_impostor) {
                         if (!this.state.isLaxatif) {
@@ -370,11 +398,23 @@ export class Game extends Scene
             });
         });
 
+        generateurLayer.objects.forEach(obj => {
+            const sprite = this.add.sprite(obj.x, obj.y, 'generateur').setOrigin(0, 1).setInteractive();
+            this.physics.add.existing(sprite, true);
+            this.physics.add.overlap(this.player, sprite, () => {
+                this.setInteraction(sprite, 'generateur', 'Appuyez sur E pour court-circuiter');
+            });
+        });
+
         const randomIndex = Phaser.Math.Between(0, computerLayer.objects.length - 1);
 
         computerLayer.objects.forEach((obj, index) => {
             const isOn = index === randomIndex;
-            const textureKey = isOn ? 'computerOn' : 'computerOff';
+            let textureKey = isOn ? 'computerOn' : 'computerOff';
+            
+            if (this.isGenerateur) {
+                textureKey = 'computerOn'
+            }
 
             const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
             this.computers.push({
@@ -505,6 +545,7 @@ export class Game extends Scene
                     const randomIndex = Math.floor(Math.random() * offComputers.length);
                     const indexNewComputer = this.computers.findIndex(computer => computer === offComputers[randomIndex] )
                     this.computers[indexNewComputer].sprite.setTexture('computerOn')
+                    this.computers[indexNewComputer].isOn = true
                     this.physics.add.overlap(this.player, this.computers[indexNewComputer].sprite, () => {
                         this.setInteraction(this.computers[indexNewComputer].sprite, 'computer', 'Appuyez sur E pour jouer au mini-jeu');
                     });
@@ -563,8 +604,12 @@ export class Game extends Scene
 
         EventBus.emit('time', {minutes: String(minutes).padStart(2, '0'), seconds: String(seconds).padStart(2, '0')})
 
-        if ((this.timeRemaining <= 450 || this.timeRemaining <= 250) && !this.pauseTriggered) { // Exemple : à 4 minutes restantes
-            this.pauseTriggered = true; // Empêcher la pause d’être déclenchée plusieurs fois
+        if (this.timeRemaining <= 450 && !this.pauseTriggeredOne) { // Exemple : à 4 minutes restantes
+            this.pauseTriggeredOne = true; // Empêcher la pause d’être déclenchée plusieurs fois
+            this.handleGamePause(); // Appeler la fonction de pause
+        }
+        if (this.timeRemaining <= 250 && !this.pauseTriggeredTwo) { // Exemple : à 4 minutes restantes
+            this.pauseTriggeredTwo = true; // Empêcher la pause d’être déclenchée plusieurs fois
             this.handleGamePause(); // Appeler la fonction de pause
         }
         
@@ -652,6 +697,11 @@ export class Game extends Scene
                     EventBus.emit('burn-out-max', true)
                     this.socket.emit('userBurnOut', {roomKey: this.state.roomKey, playerKey: this.user.token})
                     this.isBlocked = true
+                }
+                if ((this.burnout / this.burnoutMax) * 100 >= 90) {
+                    EventBus.emit('alert-burn-out', true)
+                } else {
+                    EventBus.emit('alert-burn-out', false)
                 }
                 EventBus.emit('burn-out', {value: (this.burnout / this.burnoutMax) * 100})
             }
