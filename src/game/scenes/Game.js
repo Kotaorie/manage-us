@@ -25,6 +25,8 @@ export class Game extends Scene
         this.isGameStarted = false
         this.computers = []
         this.isBlocked = false
+        this.inondation = []
+        this.inondationStarted = false
 
         //piège début
         this.canPlaceTrap = true; // Vérifie si un imposteur peut poser un piège
@@ -50,6 +52,7 @@ export class Game extends Scene
         this.load.image('bottle', 'assets/Objects/bottle.png');
         this.load.image('sink', 'assets/Objects/sink.png');
         this.load.spritesheet('animated_sink', 'assets/Objects/sink_animated.png', { frameWidth: 32, frameHeight: 32 });
+        this.load.spritesheet('water', 'assets/anims/animated_water.png', { frameWidth: 64, frameHeight: 64});
         this.load.tilemapTiledJSON('map', 'assets/tiles/map1.json');
         this.load.spritesheet('perso', 'assets/perso1.png', { frameWidth: 44, frameHeight: 44, margin: 20, spacing: 20  });
 
@@ -126,17 +129,20 @@ export class Game extends Scene
         const livingroom =  map.addTilesetImage('livingroom', 'livingroom');
         const terrains =  map.addTilesetImage('terrains', 'terrains');
         const vehicule =  map.addTilesetImage('vehicule', 'vehicule');
-        map.createLayer('Grounds', [builder, terrains, vehicule, city, classroom, conference, livingroom]);
-        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen, builder, city, classroom, conference, livingroom, terrains, vehicule, basement]);
-        const wallsLayer = map.createLayer('Walls', [builder, terrains, vehicule, city, classroom, conference, livingroom, jail]);
+        map.createLayer('Grounds', [builder, terrains, vehicule, city, classroom, conference, livingroom]).setDepth(0);
+        map.createLayer('ObjetCachet', [bathroom, generic, jail, kitchen, builder, city, classroom, conference, livingroom, terrains, vehicule, basement]).setDepth(2);
+        const wallsLayer = map.createLayer('Walls', [builder, terrains, vehicule, city, classroom, conference, livingroom, jail]).setDepth(3);
         
         wallsLayer.setCollisionByProperty({ collides: true });
+        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]).setDepth(4);
+        map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]).setDepth(4);
         map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         map.createLayer('ObjetVisible', [city2, bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
+        const inondationLayer = map.getObjectLayer('Inondation');
         const generateurLayer = map.getObjectLayer('Generateur');
         this.miniGames = [HangmanMiniGame, OddOneOutMiniGame, MemoryGameMiniGame, SwitchPuzzleMiniGame, MathPuzzleMiniGame];
         this.miniGames = [ OddOneOutMiniGame];
@@ -172,6 +178,7 @@ export class Game extends Scene
         this.player.body.setSize(this.player.width /4 , this.player.height / 4); // Adapte la taille à la moitié si besoin
         this.player.body.setOffset(7,15);
         this.player.setScale(1.5)
+        this.player.setDepth(6);
 
         this.player.setBounce(0.2);
         this.player.setCollideWorldBounds(true);
@@ -218,6 +225,13 @@ export class Game extends Scene
         this.anims.create({
             key: 'down',
             frames: this.anims.generateFrameNumbers('perso', { start: 0, end: 5 }),
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'animated_water',
+            frames: this.anims.generateFrameNumbers('water', { start: 0, end: 7 }),
             frameRate: 10,
             repeat: -1
         });
@@ -341,6 +355,40 @@ export class Game extends Scene
                         
                         this.startMiniGame(this, filteredMissions.item.miniGame, sprite, filteredMissions.index); // Passer le sprite de l’ordinateur
                     }
+                }   else if (type === 'sink') {
+                    const newTexture = sprite.texture.key === 'animated_sink' ? 'sink' : 'animated_sink';
+                    sprite.setTexture(newTexture);
+                    if(sprite.texture.key === 'animated_sink'){
+                        for (let i = 0; i < this.inondation.length; i++) {
+                            this.time.delayedCall(i * 500, () => {
+                                const nextInondation = this.inondation.filter(p => p.name === 'inondation_' + i);
+                                if (nextInondation.length > 0) {
+                                    nextInondation.forEach(inondation => {
+                                        const water = this.add.sprite(inondation.x, inondation.y, 'water').setOrigin(0, 1).setScale(0.5);
+                                        water.anims.play('animated_water');
+                                        water.setDepth(1);
+                                        inondation.waterSprite = water; // Store reference to the water sprite
+                                    });
+                                }
+                            }, null, this);
+                        }
+                    } else {
+                        for (let i = 0; i < this.inondation.length; i++) {
+                            this.time.delayedCall(i * 500, () => {
+                                const nextInondation = this.inondation.filter(p => p.name === 'inondation_' + i);
+                                if (nextInondation.length > 0) {
+                                    nextInondation.forEach(inondation => {
+                                        if (inondation.waterSprite) {
+                                            this.time.delayedCall(500, () => {
+                                                inondation.waterSprite.destroy(); // Remove the sprite from the scene
+                                                inondation.waterSprite = null;    // Clear the reference
+                                            });
+                                        }
+                                    });
+                                }
+                            }, null, this);
+                        }
+                    }
                 }
 
                 currentInteractable = null;  // Réinitialiser après interaction
@@ -352,7 +400,7 @@ export class Game extends Scene
             var isOn = obj.properties.find(p => p.name === 'check')?.value || false;
             const room = obj.properties.find(p => p.name === 'room')?.value || 'Zone inconnue';
             const textureKey = isOn ? 'interupteurOnTexture' : 'interupteurOffTexture';
-            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive().setDepth(5);
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
                 this.setInteraction(sprite, 'interupteur', 'Press E', room);
@@ -360,7 +408,7 @@ export class Game extends Scene
         });
 
         bottleLayer.objects.forEach(obj => {
-            const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive();
+            const sprite = this.add.sprite(obj.x, obj.y, 'bottle').setOrigin(0, 1).setInteractive().setDepth(5);
             this.physics.add.existing(sprite, true);
             this.physics.add.overlap(this.player, sprite, () => {
                 if (this.user.is_impostor) {
@@ -394,7 +442,7 @@ export class Game extends Scene
                 textureKey = 'computerOn'
             }
 
-            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+            const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive().setDepth(5);
             this.computers.push({
                 sprite,
                 isOn
@@ -415,25 +463,25 @@ export class Game extends Scene
             this.interactionText.setText(text);
         };
 
+        inondationLayer.objects.forEach(obj => {
+            this.inondation.push(obj)
+        });
+
 
         sinkLayer.objects.forEach(obj => {
-                const isOn = obj.properties.find(p => p.name === 'water')?.value || false;
-                const textureKey = 'sink';
-                const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive();
+                const isOn = obj.properties.find(p => p.name === 'break_water')?.value || false;
+                const textureKey = isOn ? 'animated_sink' : 'sink';
+                const sprite = this.add.sprite(obj.x, obj.y, textureKey).setOrigin(0, 1).setInteractive().setDepth(5);
                 sprite.setSize(obj.width, obj.height);
                 this.physics.add.existing(sprite, true);
                 this.physics.add.overlap(this.player, sprite, () => {
-                    isInteracting = true;
-                    this.interactionText.setText('Appuyez sur E pour casser le lavabo');
-                    this.input.keyboard.on('keydown-E', () => {
-                        const currentTexture = sprite.texture.key;
-                        const newTexture = currentTexture === 'sink' ? 'animated_sink' : 'sink';
-                        this.interactionText.setText('Innondation en cours');
-                        sprite.setTexture(newTexture);
-                    });
+                    if(isOn){
+                        this.setInteraction(sprite, 'sink', "Lancé l'inondation");
+                    }else {
+                        this.setInteraction(sprite, 'sink', 'Arrété l\'inondation');
+                    }
                 });
-            }
-        );
+        });
 
         this.time.addEvent({
             delay: 100,
