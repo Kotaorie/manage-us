@@ -188,14 +188,6 @@ onUnmounted(() => {
 
 });
 
-const filteredPlayer = computed(() => {
-    const playersArray = Object.values(stateRoom.value.players); // Convertit l'objet en tableau
-    return playersArray.filter((player) => {
-        return !stateRoom.value.userEliminated.includes(player.playerId) &&
-            !stateRoom.value.userBurnOut.includes(player.playerId);
-    });
-});
-
 //piège début
 const isTrapped = ref(false);
 const trapCooldownRemaining = ref(20);
@@ -240,7 +232,7 @@ defineExpose({scene, game});
             <li>Eteindre la lumière</li>
         </ul>
     </div>
-    <div v-if="isPause" class="div-pause">
+    <div v-if="isPause" class="div-pause" style="z-index: 9999">
         <div class="project">
             <p>Avancement projet</p>
             <div class="progress-container">
@@ -257,7 +249,7 @@ defineExpose({scene, game});
             <h1>Un stagiaire sabote l'équipe !</h1>
             <h2>C’est l’heure du jugement : qui est le stagiaire à renvoyer ?</h2>
             <div v-if="!isResultVote" class="avatars">
-                <div v-if="!isVote" v-for="(player, index) in filteredPlayer" :key="index" @click="vote(player.playerId)"
+                <div v-if="!isVote" v-for="(player, index) in stateRoom.players" :key="index" @click="vote(player.playerId)"
                      class="avatar">
                     <p>{{ player.pseudo }}</p>
                 </div>

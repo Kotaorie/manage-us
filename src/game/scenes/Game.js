@@ -841,7 +841,7 @@ export class Game extends Scene
             return
         }
         if (this.canPlaceTrap) {
-            const trap = this.add.rectangle(piege.x, piege.y, 32, 32, 0x000000);
+            const trap = this.add.rectangle(piege.x, piege.y, 32, 32);
             this.physics.add.existing(trap); // Active la physique sur cet objet
             trap.body.setAllowGravity(false); // Pas de gravité sur le piège
             trap.body.setImmovable(true); // Le piège ne bouge pas
