@@ -586,7 +586,7 @@ export class Game extends Scene
         let lastAnim = 'stop';
 
         if (this.zoneLabels.text === 'Fun Room' && this.burnout > 0) {
-            this.burnout -= 0.01;
+            this.burnout -= 0.02;
         }
         
         if (!this.isBlocked) {
