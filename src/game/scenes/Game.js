@@ -138,8 +138,6 @@ export class Game extends Scene
         wallsLayer.setCollisionByProperty({ collides: true });
         map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]).setDepth(4);
         map.createLayer('ObjetVisible', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]).setDepth(4);
-        map.createLayer('ObjetVisible2', [bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
-        map.createLayer('ObjetVisible', [city2, bathroom, generic, jail, kitchen, city, classroom, conference, livingroom, terrains, vehicule, basement]);
         const interupteurLayer = map.getObjectLayer('Interupteur');
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
