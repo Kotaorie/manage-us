@@ -1,10 +1,11 @@
 import {Scene} from 'phaser';
-import {OddOneOutMiniGame} from '../minigames/OddOneOutMiniGame';
-import {MemoryGameMiniGame} from '../minigames/MemoryGameMiniGame';
-import {HangmanMiniGame} from '../minigames/HangmanMiniGame';
+
 import {EventBus} from "@/game/EventBus.js";
-import { SwitchPuzzleMiniGame } from '../minigames/SwitchPuzzleMiniGame';
-import { MathPuzzleMiniGame } from '../minigames/MathPuzzleMiniGame';
+import HangmanGame from "../minigames/HangmanGame.vue";
+import OddOneOutGame from '../minigames/OddOneOutGame.vue';
+import MemoryGame from '../minigames/MemoryGame.vue';
+import SwitchPuzzleMiniGame from "../minigames/SwitchPuzzleGame.vue";
+import MathPuzzleGame from '../minigames/MathPuzzleGame.vue';
 
 export class Game extends Scene
 {
@@ -136,7 +137,7 @@ export class Game extends Scene
         const bottleLayer = map.getObjectLayer('Bottle');
         const computerLayer = map.getObjectLayer('Computer');
         const sinkLayer = map.getObjectLayer('Sink');
-        this.miniGames = [ OddOneOutMiniGame];
+        this.miniGames = [OddOneOutGame, MemoryGame, HangmanGame, MathPuzzleGame, SwitchPuzzleMiniGame]
 
         //lumières
         this.darknessOverlay = this.add.graphics();
@@ -495,31 +496,40 @@ export class Game extends Scene
         EventBus.emit('launchMiniGame', miniGameClass);
     
         // Écoute de la fin du jeu depuis Vue.js
-        EventBus.on('end-game', (success) => {
-            // Succès du mini-jeu
+        EventBus.once('end-game', (success) => {
             if (success) {
                 // Marquer la mission comme terminée
-                this.completedMissions[miniGameClass] = true;
+                this.completedMissions[miniGameClass] = true; // Utilisez le nom unique du mini-jeu
                 EventBus.emit('missionCompleted', indexMission);
                 this.socket.emit("successMission", { roomKey: this.state.roomKey, playerKey: this.user.token });
     
-                // Éteindre l'ordinateur actuel
-                computerSprite.setTexture('computerOff');
-                computerSprite.disableInteractive();
+                // Désactiver tous les ordinateurs
+                this.computers.forEach(computer => {
+                    computer.sprite.setTexture('computerOff');
+                    computer.isOn = false;
+                    computer.sprite.disableInteractive();
+                });
     
-                // Trouver un autre ordinateur à allumer
-                const offComputers = this.computers.filter(computer => !computer.isOn);
-                if (offComputers.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * offComputers.length);
-                    const newComputer = offComputers[randomIndex];
+                // Filtrer les ordinateurs avec des mini-jeux non terminés
+                const availableComputers = this.computers.filter(
+                    (computer) => !this.completedMissions[computer.miniGame]
+                );
     
+                if (availableComputers.length > 0) {
+                    // Sélectionner un nouvel ordinateur au hasard parmi les ordinateurs disponibles
+                    const randomIndex = Math.floor(Math.random() * availableComputers.length);
+                    const newComputer = availableComputers[randomIndex];
                     newComputer.sprite.setTexture('computerOn');
-                    newComputer.sprite.setInteractive();
                     newComputer.isOn = true;
+                    newComputer.sprite.setInteractive();
     
                     this.physics.add.overlap(this.player, newComputer.sprite, () => {
                         this.setInteraction(newComputer.sprite, 'computer', 'Appuyez sur E pour jouer au mini-jeu');
                     });
+                } else {
+                    // Si tous les mini-jeux sont complétés
+                    EventBus.emit('all-missions-completed');
+                    console.log("Toutes les missions ont été complétées !");
                 }
             } else {
                 // Échec du mini-jeu

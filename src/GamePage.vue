@@ -7,9 +7,9 @@ import HangmanGame from "./game/minigames/HangmanGame.vue";
 import OddOneOutGame from './game/minigames/OddOneOutGame.vue';
 import MemoryGame from './game/minigames/MemoryGame.vue';
 import SwitchPuzzleMiniGame from "./game/minigames/SwitchPuzzleGame.vue";
+import MathPuzzleGame from './game/minigames/MathPuzzleGame.vue';
 
 import {EventBus} from "@/game/EventBus.js";
-import MathPuzzleGame from './game/minigames/MathPuzzleGame.vue';
  
 const route = useRoute();
 const token_room = route.params.token_room;
