@@ -860,7 +860,7 @@ export class Game extends Scene
         EventBus.emit('laxative-effect-start', true);
 
         // Téléportation après l'effet
-        const teleportPosition = { x: 250, y: 550 };
+        const teleportPosition = { x: 384, y: 320 };
         innocentPlayer.setPosition(teleportPosition.x, teleportPosition.y);
         let remainingTime = 30;
         const countdownTimer = this.time.addEvent({
