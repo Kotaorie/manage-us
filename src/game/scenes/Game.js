@@ -542,7 +542,7 @@ export class Game extends Scene
         this.traps = this.physics.add.group();
         this.trapCooldownRemaining = 0;
         EventBus.on('place-trap', () => {
-            // mettre event socket en emit
+            // mettre event events en emit
             const data = {
                 roomKey: this.state.roomKey,
                 piege: {
@@ -553,7 +553,7 @@ export class Game extends Scene
             this.socket.emit('addPiege', (data))
         });
         
-        // socket .on => this.placeTrap
+        // events .on => this.placeTrap
         this.socket.on('refreshPiege', (state) => {
             this.state = state
             this.state.pieges.forEach((piege, index) => {
